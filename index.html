@@ -128,9 +128,23 @@ td:first-child{text-align:left;font-weight:600}
 
 <div id="loading">読み込み中…</div>
 
+<!-- LOGIN -->
+<div id="screen-login" class="screen" style="display:none">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;text-align:center">
+    <div style="font-size:3rem;margin-bottom:16px">👕</div>
+    <h1 style="font-size:1.4rem;font-weight:700;color:#2d3748;margin-bottom:8px">こどもサイズ予測</h1>
+    <p style="font-size:.88rem;color:#888;margin-bottom:40px;line-height:1.7">Googleアカウントでログインして<br>お子さまの成長記録を始めましょう</p>
+    <button onclick="signInWithGoogle()" style="display:flex;align-items:center;gap:10px;padding:14px 28px;background:#fff;border:1.5px solid #ddd;border-radius:10px;font-size:.95rem;font-weight:600;color:#444;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.96 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Googleでログイン
+    </button>
+  </div>
+</div>
+
 <!-- HOME -->
 <div id="screen-home" class="screen">
   <div class="hdr">
+    <button class="act" onclick="signOut()" style="font-size:.75rem;padding:6px 10px;opacity:.8">ログアウト</button>
     <h1>こどもサイズ予測</h1>
     <button class="act" onclick="openChildModal()">＋ 追加</button>
   </div>
@@ -304,8 +318,8 @@ td:first-child{text-align:left;font-weight:600}
   ────────────────────────────────────────────────────────
 */
 
-const SUPABASE_URL = 'https://ujugrtyrwsyqrjuxxwtx.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_KrVbo203ThAX6ufGSb2lYQ_tN7u45Ha';
+const SUPABASE_URL = 'https://ckiszpfcaeoxschkgojd.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_ZWFtAIrfI3hfqwLRC7Af_Q_MyN93Lcr';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ─── State ────────────────────────────────────
@@ -539,7 +553,8 @@ function showTab(tab) {
 
 // ─── Supabase ─────────────────────────────────
 async function fetchChildren() {
-  const { data } = await sb.from('size_children').select('*').order('sort_order').order('created_at');
+  const { data: { user } } = await sb.auth.getUser();
+  const { data } = await sb.from('size_children').select('*').eq('user_id', user.id).order('sort_order').order('created_at');
   return data || [];
 }
 async function fetchMeasurements(childId) {
@@ -750,81 +765,128 @@ function toggleBrandVisible(name) {
 }
 
 // ─── クローゼットタブ ────────────────────────
+const SEASON_CATS = {
+  '夏': ['半袖', '夏肌着', 'ボトムス', '下着', '靴'],
+  '冬': ['長袖', 'アウター', '冬肌着', 'ボトムス', '下着', '靴'],
+};
+
+function getSeasons() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const isSummerFirst = month >= 3 && month <= 8;
+  const periods = [];
+  if (isSummerFirst) {
+    periods.push({ label: '今年の夏',    key: `${year}夏`,   season: '夏' });
+    periods.push({ label: '今年の冬',    key: `${year}冬`,   season: '冬' });
+    periods.push({ label: '来年の夏',    key: `${year+1}夏`, season: '夏' });
+    periods.push({ label: '来年の冬',    key: `${year+1}冬`, season: '冬' });
+    periods.push({ label: '再来年の夏',  key: `${year+2}夏`, season: '夏' });
+    periods.push({ label: '再来年の冬',  key: `${year+2}冬`, season: '冬' });
+  } else {
+    periods.push({ label: '今年の冬',    key: `${year}冬`,   season: '冬' });
+    periods.push({ label: '来年の夏',    key: `${year+1}夏`, season: '夏' });
+    periods.push({ label: '来年の冬',    key: `${year+1}冬`, season: '冬' });
+    periods.push({ label: '再来年の夏',  key: `${year+2}夏`, season: '夏' });
+    periods.push({ label: '再来年の冬',  key: `${year+2}冬`, season: '冬' });
+    periods.push({ label: `${year+3}年の夏`, key: `${year+3}夏`, season: '夏' });
+  }
+  return periods;
+}
+
 function renderCloset() {
   const el = document.getElementById('tab-closet');
-  let html = '<p style="font-size:.8rem;color:#aaa;margin-bottom:16px;line-height:1.6">各サイズの枚数を記録できます。</p>';
+  const periods = getSeasons();
+  let html = '<p style="font-size:.8rem;color:#aaa;margin-bottom:16px;line-height:1.6">着る時期ごとに枚数とメモを記録できます。</p>';
 
-  const latest = measurements[0];
-  const currentClothes = latest ? (latest.tops_size || latest.clothing_size || getClothingSize(latest.height_cm)) : null;
-  const currentBottoms = latest ? (latest.bottoms_size || latest.clothing_size || getClothingSize(latest.height_cm)) : null;
-  const currentShoe   = latest ? (latest.shoe_size_cm ? String(parseFloat(latest.shoe_size_cm).toFixed(1)) : null) : null;
+  periods.forEach(period => {
+    const cats = SEASON_CATS[period.season];
+    const isSummer = period.season === '夏';
+    const bg = isSummer ? '#fff8f0' : '#f0f4ff';
+    const emoji = isSummer ? '☀️' : '❄️';
+    const border = isSummer ? '#ffe0b2' : '#c5cae9';
+    const memoItem = wardrobe.find(w => w.category === '_memo' && w.size === period.key);
+    const memoText = memoItem ? (memoItem.memo || '') : '';
 
-  WARDROBE_CATS.forEach(cat => {
-    const isShoe = cat.key === '靴';
-    const isBottoms = cat.key === 'ボトムス' || cat.key === '下着';
-    const currentSz = isShoe ? currentShoe : (isBottoms ? currentBottoms : currentClothes);
+    html += `<div style="background:${bg};border:1px solid ${border};border-radius:14px;padding:14px 16px;margin-bottom:16px">`;
+    html += `<div style="font-weight:700;font-size:.95rem;color:#2d3748;margin-bottom:12px">${emoji} ${period.label}</div>`;
 
-    html += `<div class="closet-cat">
-      <div class="closet-cat-title">${cat.key}</div>
-      <div class="closet-sizes">`;
-    cat.sizes.forEach(sz => {
-      // 現在サイズ未満は、在庫がある場合のみ表示
-      if (currentSz) {
-        const below = isShoe ? parseFloat(sz) < parseFloat(currentSz) : CLOTHING_SIZES.indexOf(sz) < CLOTHING_SIZES.indexOf(currentSz);
-        const item = wardrobe.find(w => w.category === cat.key && w.size === sz);
-        if (below && (!item || item.count === 0)) return;
-      }
-      const item = wardrobe.find(w => w.category === cat.key && w.size === sz);
+    cats.forEach(cat => {
+      const item = wardrobe.find(w => w.category === cat && w.size === period.key);
       const count = item ? item.count : 0;
-      const memo = item ? (item.memo || '') : '';
       html += `
-        <div class="closet-chip" id="chip-${cat.key}-${sz}">
-          <div class="closet-chip-size">${sz}</div>
-          <div class="closet-chip-ctrl">
-            <button class="closet-chip-btn" onclick="adjWardrobe('${cat.key}','${sz}',-1)">－</button>
-            <span class="closet-chip-count">${count}</span>
-            <button class="closet-chip-btn" onclick="adjWardrobe('${cat.key}','${sz}',1)">＋</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.06)">
+          <span style="font-size:.88rem;color:#555;min-width:70px">${cat}</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="closet-chip-btn" onclick="adjWardrobeNew('${cat}','${period.key}',-1)">－</button>
+            <span style="min-width:24px;text-align:center;font-size:.95rem;font-weight:700;color:var(--child-color)">${count}</span>
+            <button class="closet-chip-btn" onclick="adjWardrobeNew('${cat}','${period.key}',1)">＋</button>
           </div>
-          ${count > 0 ? `<input class="closet-memo" type="text" value="${memo.replace(/"/g,'&quot;')}" placeholder="メモ" onchange="saveMemo('${cat.key}','${sz}',this.value)">` : ''}
         </div>`;
     });
-    html += `</div></div>`;
+
+    html += `
+      <div style="margin-top:12px">
+        <textarea
+          id="memo-${period.key}"
+          style="width:100%;min-height:100px;padding:10px 12px;border:1px solid ${border};border-radius:8px;font-size:.85rem;font-family:inherit;color:#444;resize:vertical;background:#fff;outline:none;box-sizing:border-box;line-height:1.7"
+          placeholder="メモ（保管場所・ブランド名・コメントなど）"
+          onblur="savePeriodMemo('${period.key}', this.value)"
+        >${memoText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      </div>`;
+
+    html += '</div>';
   });
 
   el.innerHTML = html;
 }
 
-async function adjWardrobe(category, size, delta) {
-  const item = wardrobe.find(w => w.category === category && w.size === size);
+async function adjWardrobeNew(category, period, delta) {
+  const item = wardrobe.find(w => w.category === category && w.size === period);
   const newCount = Math.max(0, (item ? item.count : 0) + delta);
-  const memo = item ? (item.memo || '') : '';
-
   if (item) {
     await sb.from('size_wardrobe').update({ count: newCount, updated_at: new Date().toISOString() }).eq('id', item.id);
     item.count = newCount;
   } else if (newCount > 0) {
-    const { data } = await sb.from('size_wardrobe').insert({ child_id: currentChildId, category, size, count: newCount, memo: '' }).select().single();
+    const { data } = await sb.from('size_wardrobe').insert({ child_id: currentChildId, category, size: period, count: newCount, memo: '' }).select().single();
     if (data) wardrobe.push(data);
   }
   renderCloset();
 }
 
-async function saveMemo(category, size, memo) {
-  const item = wardrobe.find(w => w.category === category && w.size === size);
-  if (!item) return;
-  await sb.from('size_wardrobe').update({ memo, updated_at: new Date().toISOString() }).eq('id', item.id);
-  item.memo = memo;
+async function savePeriodMemo(period, memo) {
+  const item = wardrobe.find(w => w.category === '_memo' && w.size === period);
+  if (item) {
+    await sb.from('size_wardrobe').update({ memo, updated_at: new Date().toISOString() }).eq('id', item.id);
+    item.memo = memo;
+  } else if (memo.trim()) {
+    const { data } = await sb.from('size_wardrobe').insert({ child_id: currentChildId, category: '_memo', size: period, count: 0, memo }).select().single();
+    if (data) wardrobe.push(data);
+  }
 }
 
 // ─── ブランドタブ ─────────────────────────────
 function renderBrands() {
   const el = document.getElementById('tab-brands');
-  let html = '<p style="font-size:.8rem;color:#888;margin-bottom:14px;line-height:1.6">ON/OFFで予測表への表示を切り替えられます。サイズ感の調整・メモも保存できます。</p>';
+  let html = '<p style="font-size:.8rem;color:#888;margin-bottom:14px;line-height:1.6">各ブランドのサイズ感の特徴です。購入時の参考にしてください。</p>';
 
   html += `<div class="section-title" style="margin-bottom:12px">服ブランド</div>`;
-  BRANDS.clothes.forEach(b => { html += buildBrandEditRow(b.name, '服', b.defaultOffset, b.defaultNote, false); });
+  BRANDS.clothes.forEach(b => {
+    html += `
+    <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px">
+      <div style="font-weight:700;font-size:.9rem;color:#2d3748;min-width:90px">${b.name}</div>
+      <div style="font-size:.85rem;color:#555;line-height:1.6">${b.defaultNote}</div>
+    </div>`;
+  });
+
   html += `<div class="section-title" style="margin:16px 0 12px">靴ブランド</div>`;
-  BRANDS.shoes.forEach(b => { html += buildBrandEditRow(b.name, '靴', b.defaultOffsetCm, b.defaultNote, true); });
+  BRANDS.shoes.forEach(b => {
+    html += `
+    <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px">
+      <div style="font-weight:700;font-size:.9rem;color:#2d3748;min-width:90px">${b.name}</div>
+      <div style="font-size:.85rem;color:#555;line-height:1.6">${b.defaultNote}</div>
+    </div>`;
+  });
 
   el.innerHTML = html;
 }
@@ -950,8 +1012,9 @@ async function saveChild() {
   const gender = document.getElementById('f-child-gender').value;
   if (!name || !birthdate) { showToast('名前と生年月日を入力してください'); return; }
 
+  const { data: { user } } = await sb.auth.getUser();
   const record = { name, birthdate, gender, icon: selectedIcon, color: selectedColor };
-  if (!editingChildId) record.sort_order = children.length;
+  if (!editingChildId) { record.sort_order = children.length; record.user_id = user.id; }
 
   let error;
   if (editingChildId) {
@@ -1071,13 +1134,40 @@ function initBirthSelects() {
 }
 
 // ─── 初期化 ───────────────────────────────────
+async function signInWithGoogle() {
+  await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: 'https://mihokeiridaiko.github.io/kids-size/' }
+  });
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  document.getElementById('screen-home').style.display = 'none';
+  document.getElementById('screen-child').style.display = 'none';
+  document.getElementById('screen-login').style.display = 'flex';
+}
+
 async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  document.getElementById('loading').style.display = 'none';
+  if (!session) {
+    document.getElementById('screen-login').style.display = 'flex';
+    return;
+  }
   initBirthSelects();
   children = await fetchChildren();
-  document.getElementById('loading').style.display = 'none';
   showHome();
   renderHome();
 }
+
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN') {
+    document.getElementById('screen-login').style.display = 'none';
+    initBirthSelects();
+    fetchChildren().then(data => { children = data; showHome(); renderHome(); });
+  }
+});
 
 init();
 </script>
