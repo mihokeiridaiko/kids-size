@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>こどもサイズ予測</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px;--child-color:#7c6ff7}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;background:#faf5ff;color:#2d3748;min-height:100vh;max-width:480px;margin:0 auto}
+
+.hdr{background:#fff;color:#2d3748;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.hdr h1{font-size:1.05rem;font-weight:700;flex:1;letter-spacing:.03em}
+.hdr .back{background:none;border:none;color:inherit;font-size:1.6rem;cursor:pointer;padding:2px 6px;line-height:1}
+.hdr .act{background:#fff0f4;border:none;color:#ff6b9d;border-radius:20px;padding:6px 14px;font-size:.82rem;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600}
+.hdr.child-hdr .act{background:rgba(255,255,255,.25);color:#fff}
+
+#loading{display:flex;align-items:center;justify-content:center;height:100vh;font-size:1rem;color:#aaa}
+.screen{display:none}
+.screen.active{display:block}
+
+.home-body{padding:16px}
+.child-card{background:#fff;border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 3px 12px rgba(0,0,0,.07);cursor:pointer;display:flex;align-items:center;gap:14px;transition:transform .15s;border-left:4px solid #e0d9ff}
+.child-card:active{transform:scale(.97)}
+.child-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.7rem;flex-shrink:0}
+.child-info{flex:1;min-width:0}
+.child-name{font-size:1rem;font-weight:700;margin-bottom:2px}
+.child-age{font-size:.8rem;color:#999}
+.child-size{font-size:.82rem;font-weight:600;margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 10px}
+
+.tabs{display:flex;background:#fff;border-bottom:2px solid #f0f0f0;position:sticky;top:52px;z-index:90}
+.tab{flex:1;padding:12px 8px;border:none;background:none;font-family:inherit;font-size:.88rem;color:#bbb;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;font-weight:600}
+.tab.active{color:var(--child-color);border-bottom-color:var(--child-color)}
+.tab-body{padding:16px}
+
+#current-size-bar{padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.82rem;font-weight:600;background:#fff;border-bottom:1px solid #f0f0f0}
+#current-size-bar span{color:var(--child-color)}
+#current-size-bar .csb-label{color:#aaa;font-weight:400;font-size:.75rem;margin-right:2px}
+
+.closet-cat{margin-bottom:20px}
+.closet-cat-title{font-size:.88rem;font-weight:700;color:#555;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.closet-sizes{display:flex;flex-wrap:wrap;gap:8px}
+.closet-chip{display:flex;flex-direction:column;align-items:center;background:#fff;border-radius:12px;padding:8px 10px;min-width:52px;box-shadow:0 1px 4px rgba(0,0,0,.07);gap:4px}
+.closet-chip-size{font-size:.78rem;color:#888;font-weight:600}
+.closet-chip-ctrl{display:flex;align-items:center;gap:4px}
+.closet-chip-btn{width:24px;height:24px;border-radius:6px;border:1.5px solid #e0d9ff;background:#fff;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--child-color);line-height:1}
+.closet-chip-count{min-width:22px;text-align:center;font-size:.9rem;font-weight:700;color:var(--child-color)}
+.closet-memo{width:100%;margin-top:4px;padding:4px 6px;border:1px solid #e8e4ff;border-radius:6px;font-size:.72rem;font-family:inherit;color:#555;outline:none;background:#faf8ff}
+
+.icon-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.icon-btn{width:42px;height:42px;border-radius:12px;border:2px solid #eee;background:#fafafa;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.icon-btn.selected{border-color:#7c6ff7;background:#f0ebff;transform:scale(1.1)}
+.color-grid{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.color-dot{width:30px;height:30px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:all .15s}
+.color-dot.selected{outline:3px solid #7c6ff7;outline-offset:2px;transform:scale(1.15)}
+
+.predict-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.predict-card{background:#fff;border-radius:14px;padding:10px 12px 12px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-top:3px solid #e8e4ff;position:relative;overflow:hidden}
+.predict-card.summer{border-top-color:#ff9f43}
+.predict-card.winter{border-top-color:#54a0ff}
+.predict-card.year1{border-top-color:var(--child-color)}
+.predict-card.year2{border-top-color:#a29bfe}
+.predict-icon{display:none}
+.predict-label{font-size:.82rem;font-weight:700;color:#444;margin-bottom:2px}
+.predict-date{font-size:.67rem;color:#bbb;margin-bottom:6px}
+.predict-height{font-size:.8rem;font-weight:600;color:#666;margin-bottom:6px}
+.predict-size{display:flex;gap:4px;flex-wrap:wrap}
+.predict-size span{font-size:.76rem;background:#f0f2ff;color:var(--child-color);padding:3px 8px;border-radius:20px;font-weight:700;letter-spacing:.02em}
+
+.section-title{font-size:.88rem;font-weight:700;color:#555;margin:0 0 10px;padding:0 0 6px;border-bottom:2px solid #e8e4ff;letter-spacing:.03em}
+.brand-section{margin-bottom:22px}
+.scroll-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap}
+th{padding:8px;text-align:center;background:#f0f2ff;font-weight:700;color:#555}
+th:first-child{text-align:left}
+td{padding:8px 6px;border-bottom:1px solid #f0f2ff;text-align:center}
+td:first-child{text-align:left;font-weight:600}
+.td-size{font-weight:700;color:var(--child-color)}
+.td-note{color:#aaa;font-size:.72rem;text-align:left}
+
+.measure-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px;cursor:pointer}
+.measure-card:active{background:#fafafa}
+.measure-date{font-size:.78rem;font-weight:700;color:var(--child-color);min-width:70px}
+.measure-data{flex:1}
+.measure-main{font-size:.9rem;font-weight:600;margin-bottom:2px}
+.measure-sub{font-size:.78rem;color:#888}
+.measure-note{font-size:.78rem;color:#666;margin-top:5px;padding:5px 8px;background:#f8f7ff;border-radius:6px}
+
+.fab{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));right:20px;width:56px;height:56px;border-radius:50%;background:var(--child-color);color:#fff;border:none;font-size:1.6rem;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;z-index:200;transition:all .3s}
+.fab:active{transform:scale(.88)}
+
+.brand-edit-row{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.brand-edit-name{font-weight:700;font-size:.9rem;margin-bottom:10px;color:#2d3748}
+.offset-control{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.offset-label{font-size:.82rem;color:#666;flex:1}
+.offset-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid #ddd;background:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.offset-val{min-width:38px;text-align:center;font-weight:700;color:var(--child-color);font-size:.95rem}
+.save-brand-btn{background:var(--child-color);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.8rem;cursor:pointer;font-family:inherit;margin-top:4px}
+
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:300;align-items:flex-end}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px 16px calc(36px + env(safe-area-inset-bottom));width:100%;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.modal-title{font-size:1rem;font-weight:700;margin-bottom:16px;text-align:center}
+.form-group{margin-bottom:14px}
+.form-label{font-size:.82rem;font-weight:600;color:#555;margin-bottom:5px;display:block}
+.form-input{width:100%;padding:11px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:1rem;font-family:inherit;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;background:#fff}
+.form-input:focus{border-color:var(--child-color)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-primary{width:100%;padding:14px;background:linear-gradient(135deg,#ff6b9d,#ffacc7);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;box-shadow:0 3px 10px rgba(255,107,157,.3)}
+.btn-secondary{width:100%;padding:12px;background:#fff0f4;color:#ff6b9d;border:none;border-radius:14px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px}
+.btn-danger{width:100%;padding:12px;background:#fff0f0;color:#e53e3e;border:none;border-radius:14px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px}
+
+.no-data{text-align:center;padding:48px 20px;color:#aaa;font-size:.9rem;line-height:1.8}
+#toast{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:10px 20px;border-radius:20px;font-size:.85rem;z-index:500;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+
+.bpc-card{background:#fff;border-radius:14px;padding:13px 14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.bpc-name{font-size:.84rem;font-weight:700;color:var(--child-color);margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid #eeebff}
+.bpc-row{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #f5f4ff}
+.bpc-row:last-child{border-bottom:none;padding-bottom:0}
+.bpc-period{font-size:.76rem;color:#aaa;min-width:54px;font-weight:600}
+.bpc-sizes{font-size:.85rem;color:#2d3748;font-weight:500}
+.bpc-sizes b{color:var(--child-color)}
+</style>
+</head>
+<body>
+
+<div id="loading">読み込み中…</div>
+
+<!-- HOME -->
+<div id="screen-home" class="screen">
+  <div class="hdr">
+    <h1>こどもサイズ予測</h1>
+    <button class="act" onclick="openChildModal()">＋ 追加</button>
+  </div>
+  <div class="home-body">
+    <div id="children-list"></div>
+    <div class="no-data" id="home-no-data" style="display:none">子どもを追加してください</div>
+  </div>
+</div>
+
+<!-- CHILD DETAIL -->
+<div id="screen-child" class="screen">
+  <div class="hdr child-hdr" id="child-hdr">
+    <button class="back" onclick="showHome()">‹</button>
+    <h1 id="child-hdr-name"></h1>
+    <button class="act" onclick="openChildModal(currentChildId)">編集</button>
+  </div>
+  <div id="current-size-bar"></div>
+  <div class="tabs" id="child-tabs">
+    <button class="tab active" id="tab-btn-predict" onclick="showTab('predict')">予測</button>
+    <button class="tab" id="tab-btn-history" onclick="showTab('history')">記録</button>
+    <button class="tab" id="tab-btn-closet" onclick="showTab('closet')">クローゼット</button>
+    <button class="tab" id="tab-btn-brands" onclick="showTab('brands')">ブランド</button>
+  </div>
+  <div class="tab-body" id="tab-predict"></div>
+  <div class="tab-body" id="tab-history" style="display:none"></div>
+  <div class="tab-body" id="tab-closet" style="display:none"></div>
+  <div class="tab-body" id="tab-brands" style="display:none"></div>
+  <button class="fab" id="fab-btn" onclick="openMeasureModal()">＋</button>
+</div>
+
+<!-- MODAL: 子ども -->
+<div class="modal-overlay" id="child-modal">
+  <div class="modal">
+    <div class="modal-title" id="child-modal-title">子どもを追加</div>
+    <div class="form-group">
+      <label class="form-label">名前</label>
+      <input class="form-input" id="f-child-name" type="text" placeholder="例：たろう">
+    </div>
+    <div class="form-group">
+      <label class="form-label">生年月日</label>
+      <div class="form-row" style="grid-template-columns:2fr 1fr 1fr">
+        <select class="form-input" id="f-child-birth-y">
+          <option value="">年</option>
+        </select>
+        <select class="form-input" id="f-child-birth-m">
+          <option value="">月</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option>
+          <option>9</option><option>10</option><option>11</option><option>12</option>
+        </select>
+        <select class="form-input" id="f-child-birth-d">
+          <option value="">日</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">性別（任意）</label>
+      <select class="form-input" id="f-child-gender">
+        <option value="不明">選択なし</option>
+        <option value="男">男の子</option>
+        <option value="女">女の子</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <div id="icon-picker" class="icon-grid"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カラー</label>
+      <div id="color-picker" class="color-grid"></div>
+    </div>
+    <button class="btn-primary" onclick="saveChild()">保存</button>
+    <button class="btn-secondary" onclick="closeChildModal()">キャンセル</button>
+    <button class="btn-danger" id="delete-child-btn" style="display:none" onclick="deleteChild()">削除</button>
+  </div>
+</div>
+
+<!-- MODAL: 計測 -->
+<div class="modal-overlay" id="measure-modal">
+  <div class="modal">
+    <div class="modal-title" id="measure-modal-title">計測を記録</div>
+    <div class="form-group">
+      <label class="form-label">計測日</label>
+      <input class="form-input" id="f-m-date" type="date">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">身長 (cm)</label>
+        <input class="form-input" id="f-m-height" type="number" step="0.1" placeholder="例：105.5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">体重 (kg)</label>
+        <input class="form-input" id="f-m-weight" type="number" step="0.1" placeholder="例：18.2">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">トップスサイズ</label>
+        <select class="form-input" id="f-m-tops">
+          <option value="">選択</option>
+          <option>70</option><option>80</option><option>90</option>
+          <option>95</option><option>100</option><option>110</option>
+          <option>120</option><option>130</option><option>140</option><option>150</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ボトムスサイズ</label>
+        <select class="form-input" id="f-m-bottoms">
+          <option value="">選択</option>
+          <option>70</option><option>80</option><option>90</option>
+          <option>95</option><option>100</option><option>110</option>
+          <option>120</option><option>130</option><option>140</option><option>150</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">靴サイズ (cm)</label>
+        <input class="form-input" id="f-m-shoe" type="number" step="0.5" placeholder="例：16.0">
+      </div>
+      <div class="form-group"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">着用メモ</label>
+      <input class="form-input" id="f-m-note" type="text" placeholder="例：少し大きめ、裾折ってる">
+    </div>
+    <button class="btn-primary" onclick="saveMeasurement()">保存</button>
+    <button class="btn-secondary" onclick="closeMeasureModal()">キャンセル</button>
+    <button class="btn-danger" id="delete-measure-btn" style="display:none" onclick="deleteMeasurement()">この記録を削除</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/*
+  ── Supabase テーブル作成SQL（初回のみ実行） ──────────────
+  CREATE TABLE size_children (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    birthdate DATE NOT NULL,
+    gender TEXT DEFAULT '不明',
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now()
+  );
+  CREATE TABLE size_measurements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    child_id UUID REFERENCES size_children(id) ON DELETE CASCADE,
+    measured_at DATE NOT NULL,
+    height_cm NUMERIC(5,1),
+    weight_kg NUMERIC(4,1),
+    clothing_size TEXT,
+    shoe_size_cm NUMERIC(4,1),
+    note TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT now()
+  );
+  CREATE TABLE size_brand_notes (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    child_id UUID REFERENCES size_children(id) ON DELETE CASCADE,
+    brand_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    size_offset INTEGER DEFAULT 0,
+    shoe_offset_cm NUMERIC(3,1) DEFAULT 0,
+    user_note TEXT DEFAULT '',
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(child_id, brand_name, category)
+  );
+  ALTER TABLE size_children DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE size_measurements DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE size_brand_notes DISABLE ROW LEVEL SECURITY;
+  ────────────────────────────────────────────────────────
+*/
+
+const SUPABASE_URL = 'https://ujugrtyrwsyqrjuxxwtx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_KrVbo203ThAX6ufGSb2lYQ_tN7u45Ha';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── State ────────────────────────────────────
+let children = [];
+let currentChildId = null;
+let measurements = [];
+let brandNotes = [];
+let editingMeasureId = null;
+let editingChildId = null;
+let currentTab = 'predict';
+let selectedIcon = '🎀';
+let selectedColor = '#FF8FAB';
+let wardrobe = [];
+
+const CHILD_ICONS = ["🎀","⭐","🐬","🌸","🦊","🐼","🐨","🦁","🐸","🐥","🌈","🍀","🦋","🐰","🐶","🐱","🐻","🍭","🎠","🧸","🌻","🍓","🎈","🦄","🦖","🐳","🏀","⚽","🚗"];
+const CHILD_COLORS = ["#FF8FAB","#5B8DEF","#52B788","#FF9B50","#845EF7","#20B2AA","#FF6B6B","#FFAD60"];
+
+const WARDROBE_CATS = [
+  { key: '半袖',     sizes: ['70','80','90','95','100','110','120','130','140','150'] },
+  { key: '長袖',     sizes: ['70','80','90','95','100','110','120','130','140','150'] },
+  { key: '夏肌着',   sizes: ['70','80','90','95','100','110','120','130','140','150'] },
+  { key: '冬肌着',   sizes: ['70','80','90','95','100','110','120','130','140','150'] },
+  { key: 'ボトムス', sizes: ['70','80','90','95','100','110','120','130','140','150'] },
+  { key: '下着',     sizes: ['70','80','90','95','100','110','120','130','140','150'] },
+  { key: '靴',       sizes: ['13.0','13.5','14.0','14.5','15.0','15.5','16.0','16.5','17.0','17.5','18.0','18.5','19.0','19.5','20.0','20.5','21.0','22.0','23.0','24.0'] },
+];
+
+// ─── ブランドデータ ────────────────────────────
+const BRANDS = {
+  clothes: [
+    { name: '西松屋',    defaultOffset: 1,  defaultNote: '小さめ。1サイズ上を目安に。' },
+    { name: 'H&M',      defaultOffset: 1,  defaultNote: 'やや小さめ。1サイズ上を目安に。' },
+    { name: 'しまむら',  defaultOffset: 0,  defaultNote: '標準的なサイズ感。' },
+    { name: 'バースデイ', defaultOffset: 0, defaultNote: '標準的。丈はやや短め。' },
+    { name: 'デビロック', defaultOffset: 0, defaultNote: '標準的。丈やや長め。' },
+    { name: 'ユニクロ',  defaultOffset: 0,  defaultNote: '標準的。縮みにくい。' },
+    { name: 'GU',       defaultOffset: 0,  defaultNote: '標準的。ユニクロより少し小さめの場合あり。' },
+    { name: '無印良品',     defaultOffset: 0,  defaultNote: '標準的。シンプルなデザイン。' },
+    { name: 'F.O.KIDS',   defaultOffset: 0,  defaultNote: '標準的。ややカジュアル系。' },
+    { name: 'BREEZE',     defaultOffset: 0,  defaultNote: 'F.O.KIDSブランド。標準的。' },
+    { name: 'エバークローゼット', defaultOffset: 0, defaultNote: '標準的なサイズ感。' },
+    { name: 'ブランシェス', defaultOffset: 0, defaultNote: '標準的。丈やや長め。' },
+    { name: 'ペアマノン',  defaultOffset: 0,  defaultNote: '標準的。ガーリー系。' },
+  ],
+  shoes: [
+    { name: 'イフミー',      defaultOffsetCm: -0.5, defaultNote: 'ゆったり目。0.5cm小さめでも◎' },
+    { name: '瞬足',          defaultOffsetCm:  0.0, defaultNote: '標準的。左右非対称ソール。' },
+    { name: 'ムーンスター',   defaultOffsetCm:  0.0, defaultNote: '国産。標準的。' },
+    { name: 'キャロット',     defaultOffsetCm:  0.0, defaultNote: 'ムーンスター廉価ライン。標準的。' },
+    { name: 'アキレス',       defaultOffsetCm:  0.0, defaultNote: '国産。幅広め。' },
+    { name: '西松屋（靴）',   defaultOffsetCm:  0.0, defaultNote: '安価。やや細め。' },
+    { name: 'しまむら（靴）', defaultOffsetCm:  0.0, defaultNote: '安価。標準的。' },
+    { name: 'バースデイ（靴）', defaultOffsetCm: 0.0, defaultNote: '標準的。' },
+    { name: 'H&M（靴）',     defaultOffsetCm:  0.0, defaultNote: 'やや細め。EU表記注意。' },
+    { name: 'GU（靴）',      defaultOffsetCm:  0.0, defaultNote: '安価。標準的。' },
+  ],
+};
+
+const CLOTHING_SIZES = ['70','80','90','95','100','110','120','130','140','150'];
+
+// ─── 成長予測 ─────────────────────────────────
+// 月あたり成長量(cm) by 月齢
+const GROWTH_RATES = [
+  [0,3,3.5],[3,6,2.0],[6,12,1.3],
+  [12,24,0.95],[24,36,0.75],[36,48,0.60],
+  [48,60,0.55],[60,72,0.50],[72,84,0.46],
+  [84,96,0.46],[96,108,0.42],[108,120,0.46],
+  [120,132,0.55],[132,144,0.58],[144,156,0.45],
+  [156,999,0.20],
+];
+
+function getGrowthRate(ageM) {
+  for (const [s,e,r] of GROWTH_RATES) if (ageM >= s && ageM < e) return r;
+  return 0.1;
+}
+
+function predictHeight(currentH, currentAgeM, futureAgeM, personalRate = null) {
+  if (!currentH || futureAgeM <= currentAgeM) return currentH;
+  let h = currentH;
+  const steps = Math.round(futureAgeM - currentAgeM);
+  for (let i = 0; i < steps; i++) {
+    const avgRate = getGrowthRate(currentAgeM + i);
+    // 個人ペースがあれば使う（平均との加重平均：近い将来は個人重視、遠い将来は平均に寄せる）
+    const weight = personalRate !== null ? Math.max(0, 1 - i / 24) : 0;
+    h += personalRate !== null ? personalRate * weight + avgRate * (1 - weight) : avgRate;
+  }
+  return Math.round(h * 10) / 10;
+}
+
+// 過去記録から個人の月間成長ペース(cm/月)を算出
+function getPersonalGrowthRate(measurements) {
+  const withH = measurements.filter(m => m.height_cm && m.measured_at);
+  if (withH.length < 2) return null;
+  const newest = withH[0];
+  const oldest = withH[withH.length - 1];
+  const monthsDiff = (new Date(newest.measured_at).getFullYear() - new Date(oldest.measured_at).getFullYear()) * 12
+    + (new Date(newest.measured_at).getMonth() - new Date(oldest.measured_at).getMonth());
+  if (monthsDiff < 3) return null; // 3ヶ月未満は信頼性低い
+  const rate = (newest.height_cm - oldest.height_cm) / monthsDiff;
+  if (rate <= 0 || rate > 3.5) return null; // 異常値は無視
+  return Math.round(rate * 100) / 100;
+}
+
+function getAgeMonthsNow(birthdate) {
+  const b = new Date(birthdate), n = new Date();
+  return (n.getFullYear() - b.getFullYear()) * 12 + (n.getMonth() - b.getMonth());
+}
+
+function getAgeMonthsAt(birthdate, targetDate) {
+  const b = new Date(birthdate), t = new Date(targetDate);
+  return (t.getFullYear() - b.getFullYear()) * 12 + (t.getMonth() - b.getMonth());
+}
+
+function getClothingSize(h) {
+  if (!h) return '?';
+  if (h < 75)  return '70';
+  if (h < 85)  return '80';
+  if (h < 92)  return '90';
+  if (h < 98)  return '95';
+  if (h < 106) return '100';
+  if (h < 116) return '110';
+  if (h < 126) return '120';
+  if (h < 136) return '130';
+  if (h < 146) return '140';
+  return '150';
+}
+
+function getShoeSize(h) {
+  if (!h) return '?';
+  const shoe = h * 0.157 + 1.0;
+  return (Math.round(shoe * 2) / 2).toFixed(1);
+}
+
+function getPredictionTargets() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const summerYear = m >= 7 ? y + 1 : y;
+  const winterYear = m >= 11 ? y + 1 : y;
+  const nextSummer = new Date(summerYear, 6, 1);
+  const nextWinter = new Date(winterYear, 11, 1);
+  const oneYear   = new Date(now); oneYear.setFullYear(y + 1);
+  const twoYears  = new Date(now); twoYears.setFullYear(y + 2);
+  return [
+    { label: '次の夏', dateStr: `${nextSummer.getFullYear()}年${nextSummer.getMonth()+1}月`, date: nextSummer, icon: '☀️', cls: 'summer' },
+    { label: '次の冬', dateStr: `${nextWinter.getFullYear()}年${nextWinter.getMonth()+1}月`, date: nextWinter, icon: '❄️', cls: 'winter' },
+    { label: '1年後',  dateStr: `${oneYear.getFullYear()}年${oneYear.getMonth()+1}月`,  date: oneYear,   icon: '', cls: 'year1' },
+    { label: '2年後',  dateStr: `${twoYears.getFullYear()}年${twoYears.getMonth()+1}月`, date: twoYears,  icon: '', cls: 'year2' },
+  ];
+}
+
+// ─── Utils ────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+function getAgeLabel(birthdate) {
+  const b = new Date(birthdate), n = new Date();
+  const years = n.getFullYear() - b.getFullYear() - (n < new Date(n.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0);
+  const months = getAgeMonthsNow(birthdate) % 12;
+  if (years < 1) return `${getAgeMonthsNow(birthdate)}ヶ月`;
+  return months === 0 ? `${years}歳` : `${years}歳${months}ヶ月`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── ナビゲーション ───────────────────────────
+function showHome() {
+  document.getElementById('screen-home').classList.add('active');
+  document.getElementById('screen-child').classList.remove('active');
+  document.documentElement.style.setProperty('--child-color', '#7c6ff7');
+}
+
+async function showChild(childId) {
+  currentChildId = childId;
+  const child = children.find(c => c.id === childId);
+  const color = child.color || '#7c6ff7';
+  // ヘッダー・タブをその子のカラーに
+  const hdr = document.getElementById('child-hdr');
+  hdr.style.background = color;
+  hdr.style.color = '#fff';
+  hdr.style.boxShadow = `0 3px 12px ${color}55`;
+  const tabs = document.getElementById('child-tabs');
+  tabs.querySelectorAll('.tab').forEach(t => { t.style.color = ''; t.style.borderBottomColor = ''; });
+  tabs.querySelector('.tab.active')?.style && (tabs.style.setProperty('--tab-color', color));
+  // CSS変数でタブカラーを動的に
+  document.documentElement.style.setProperty('--child-color', color);
+  document.getElementById('child-hdr-name').textContent = `${child.icon || '🎀'} ${child.name}`;
+  document.getElementById('screen-home').classList.remove('active');
+  document.getElementById('screen-child').classList.add('active');
+  [measurements, brandNotes, wardrobe] = await Promise.all([
+    fetchMeasurements(childId),
+    fetchBrandNotes(childId),
+    fetchWardrobe(childId),
+  ]);
+  renderCurrentSizeBar();
+  showTab('predict');
+}
+
+function renderCurrentSizeBar() {
+  const bar = document.getElementById('current-size-bar');
+  if (!measurements.length) { bar.innerHTML = ''; return; }
+  const m = measurements[0];
+  const parts = [];
+  const hw = [m.height_cm ? `${m.height_cm}cm` : null, m.weight_kg ? `${m.weight_kg}kg` : null].filter(Boolean).join('／');
+  if (hw) parts.push(`<span>${hw}</span>`);
+  if (m.tops_size)    parts.push(`<span><span class="csb-label">👕</span>${m.tops_size}</span>`);
+  if (m.bottoms_size) parts.push(`<span><span class="csb-label">👖</span>${m.bottoms_size}</span>`);
+  if (m.shoe_size_cm) parts.push(`<span><span class="csb-label">👟</span>${m.shoe_size_cm}cm</span>`);
+  bar.innerHTML = parts.length ? `<span class="csb-label">現在</span>${parts.join('')}` : '';
+}
+
+function showTab(tab) {
+  currentTab = tab;
+  ['predict','history','closet','brands'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
+    document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === tab);
+  });
+  document.getElementById('fab-btn').style.display = (tab === 'brands' || tab === 'closet') ? 'none' : 'flex';
+  if (tab === 'predict') renderPredict();
+  if (tab === 'history') renderHistory();
+  if (tab === 'closet')  renderCloset();
+  if (tab === 'brands')  renderBrands();
+}
+
+// ─── Supabase ─────────────────────────────────
+async function fetchChildren() {
+  const { data } = await sb.from('size_children').select('*').order('sort_order').order('created_at');
+  return data || [];
+}
+async function fetchMeasurements(childId) {
+  const { data } = await sb.from('size_measurements').select('*').eq('child_id', childId).order('measured_at', {ascending:false});
+  return data || [];
+}
+async function fetchBrandNotes(childId) {
+  const { data } = await sb.from('size_brand_notes').select('*').eq('child_id', childId);
+  return data || [];
+}
+async function fetchWardrobe(childId) {
+  const { data } = await sb.from('size_wardrobe').select('*').eq('child_id', childId);
+  return data || [];
+}
+
+// ─── Home 描画 ────────────────────────────────
+function renderHome() {
+  const list = document.getElementById('children-list');
+  const noData = document.getElementById('home-no-data');
+  if (children.length === 0) { list.innerHTML = ''; noData.style.display = 'block'; return; }
+  noData.style.display = 'none';
+  list.innerHTML = children.map(child => {
+    const icon = child.icon || '🎀';
+    const color = child.color || '#FF8FAB';
+    return `
+    <div class="child-card" onclick="showChild('${child.id}')" style="border-left-color:${color}">
+      <div class="child-avatar" style="background:${color}22;font-size:1.8rem">${icon}</div>
+      <div class="child-info">
+        <div class="child-name">${child.name}</div>
+        <div class="child-age">${getAgeLabel(child.birthdate)}</div>
+        <div class="child-size" id="cs-${child.id}" style="color:${color}">読込中…</div>
+      </div>
+      <span style="color:#ddd;font-size:1.4rem">›</span>
+    </div>`;
+  }).join('');
+
+  children.forEach(async child => {
+    const { data } = await sb.from('size_measurements').select('*').eq('child_id', child.id).order('measured_at', {ascending:false}).limit(1);
+    const el = document.getElementById(`cs-${child.id}`);
+    if (!el) return;
+    if (data && data.length > 0) {
+      const m = data[0];
+      const parts = [];
+      const hw = [m.height_cm ? `${m.height_cm}cm` : null, m.weight_kg ? `${m.weight_kg}kg` : null].filter(Boolean).join('／');
+      if (hw) parts.push(hw);
+      if (m.tops_size) parts.push(`👕 ${m.tops_size}`);
+      if (m.bottoms_size) parts.push(`👖 ${m.bottoms_size}`);
+      if (m.shoe_size_cm) parts.push(`👟 ${m.shoe_size_cm}cm`);
+      el.innerHTML = parts.length ? parts.map(p => `<span>${p}</span>`).join('') : '記録なし';
+    } else {
+      el.style.color = '#bbb';
+      el.textContent = '計測記録なし';
+    }
+  });
+}
+
+// ─── 予測タブ ─────────────────────────────────
+function renderPredict() {
+  const el = document.getElementById('tab-predict');
+  if (measurements.length === 0) {
+    el.innerHTML = '<div class="no-data">計測記録がありません。<br>＋ボタンから身長・体重を記録してください。</div>';
+    return;
+  }
+  const child = children.find(c => c.id === currentChildId);
+  const latest = measurements[0];
+  const curAgeM = getAgeMonthsNow(child.birthdate);
+  const targets = getPredictionTargets();
+
+  // 個人成長ペース
+  const personalRate = getPersonalGrowthRate(measurements);
+  const avgRate = Math.round(getGrowthRate(curAgeM) * 100) / 100;
+  const rateNote = personalRate !== null
+    ? `<div style="font-size:.75rem;color:var(--child-color);background:#f0f2ff;padding:6px 12px;border-radius:8px;margin-bottom:14px">📈 この子の実績ペース ${personalRate}cm/月 を反映（近い将来ほど重視）</div>`
+    : measurements.length >= 2
+      ? `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">計測間隔が短いため平均値で予測中（3ヶ月以上の記録で個人ペース反映）</div>`
+      : `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">記録が1件のため平均値で予測中（複数記録で個人ペース反映）</div>`;
+
+  // 現在サイズの最低ライン（clothing_sizeも考慮）
+  const currentTopsIdx    = CLOTHING_SIZES.indexOf(latest.tops_size    || latest.clothing_size || getClothingSize(latest.height_cm));
+  const currentBottomsIdx = CLOTHING_SIZES.indexOf(latest.bottoms_size || latest.clothing_size || getClothingSize(latest.height_cm));
+  const currentShoe = parseFloat(latest.shoe_size_cm || getShoeSize(latest.height_cm));
+
+  function clampClothing(idx) { return CLOTHING_SIZES[Math.max(currentTopsIdx, Math.min(CLOTHING_SIZES.length-1, idx))]; }
+  function clampBottoms(idx) { return CLOTHING_SIZES[Math.max(currentBottomsIdx, Math.min(CLOTHING_SIZES.length-1, idx))]; }
+  function clampShoe(val) { return Math.max(currentShoe, val); }
+
+  // 予測カード
+  const cards = targets.map(t => {
+    const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
+    const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
+    const topsIdx     = CLOTHING_SIZES.indexOf(getClothingSize(pH));
+    const topsSize    = clampClothing(topsIdx);
+    const bottomsSize = clampBottoms(topsIdx);
+    const shoeSize    = (Math.round(clampShoe(parseFloat(getShoeSize(pH))) * 2) / 2).toFixed(1);
+    const isSummer = t.cls === 'summer';
+    const isWinter = t.cls === 'winter' || t.cls === 'year1' || t.cls === 'year2';
+    const outerSize = clampClothing(topsIdx + 1);
+    const topsLabel = isSummer ? '半袖' : '長袖';
+    return `
+    <div class="predict-card ${t.cls}">
+      <div class="predict-label">${t.icon ? t.icon + ' ' : ''}${t.label}</div>
+      <div class="predict-date">${t.dateStr}頃</div>
+      <div class="predict-height">身長 約${pH}cm</div>
+      <div class="predict-size">
+        <span>${topsLabel} ${topsSize}</span>
+        <span>下 ${bottomsSize}</span>
+        <span>👟 ${shoeSize}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ブランドグループ計算（服）
+  const clothesGroups = {};
+  BRANDS.clothes.forEach(brand => {
+    if (!getBrandVisible(brand.name)) return;
+    const note = brandNotes.find(n => n.brand_name === brand.name && n.category === '服');
+    const offset = note ? note.size_offset : brand.defaultOffset;
+    if (!clothesGroups[offset]) clothesGroups[offset] = [];
+    clothesGroups[offset].push(brand.name);
+  });
+
+  const clothesCards = Object.entries(clothesGroups)
+    .sort(([a],[b]) => Number(b) - Number(a))
+    .map(([offset, names]) => {
+      const off = parseInt(offset);
+      const rows = targets.map(t => {
+        const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
+        const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
+        const tops    = clampClothing(CLOTHING_SIZES.indexOf(getClothingSize(pH)) + off);
+        const bottoms = clampBottoms(CLOTHING_SIZES.indexOf(getClothingSize(pH)) + off);
+        return `<div class="bpc-row"><span class="bpc-period">${t.label}</span><span class="bpc-sizes">上 <b>${tops}</b>　下 <b>${bottoms}</b></span></div>`;
+      }).join('');
+      return `<div class="bpc-card"><div class="bpc-name">${names.join('・')}</div>${rows}</div>`;
+    }).join('');
+
+  // ブランドグループ計算（靴）
+  const shoeGroups = {};
+  BRANDS.shoes.forEach(brand => {
+    if (!getBrandVisible(brand.name)) return;
+    const note = brandNotes.find(n => n.brand_name === brand.name && n.category === '靴');
+    const offsetCm = note ? parseFloat(note.shoe_offset_cm || 0) : brand.defaultOffsetCm;
+    const key = offsetCm.toFixed(1);
+    if (!shoeGroups[key]) shoeGroups[key] = [];
+    shoeGroups[key].push(brand.name);
+  });
+
+  const shoeCards = Object.entries(shoeGroups)
+    .sort(([a],[b]) => Number(a) - Number(b))
+    .map(([offsetKey, names]) => {
+      const offsetCm = parseFloat(offsetKey);
+      const rows = targets.map(t => {
+        const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
+        const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
+        const adj = (Math.round(clampShoe(parseFloat(getShoeSize(pH)) + offsetCm) * 2) / 2).toFixed(1);
+        return `<div class="bpc-row"><span class="bpc-period">${t.label}</span><span class="bpc-sizes"><b>${adj}cm</b></span></div>`;
+      }).join('');
+      return `<div class="bpc-card"><div class="bpc-name">${names.join('・')}</div>${rows}</div>`;
+    }).join('');
+
+  el.innerHTML = `
+    ${rateNote}
+    <div class="predict-grid">${cards}</div>
+    <div class="brand-section">
+      <div class="section-title">服ブランド別サイズ</div>
+      ${clothesCards || '<div class="no-data" style="padding:20px">ブランドタブでONにしてください</div>'}
+    </div>
+    <div class="brand-section">
+      <div class="section-title">靴ブランド別サイズ</div>
+      ${shoeCards || '<div class="no-data" style="padding:20px">ブランドタブでONにしてください</div>'}
+    </div>`;
+}
+
+// ─── 記録タブ ─────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('tab-history');
+  if (measurements.length === 0) {
+    el.innerHTML = '<div class="no-data">計測記録がありません。<br>＋ボタンから記録してください。</div>';
+    return;
+  }
+  el.innerHTML = measurements.map(m => `
+    <div class="measure-card" onclick="openMeasureModal('${m.id}')">
+      <div class="measure-date">${fmtDate(m.measured_at)}</div>
+      <div class="measure-data">
+        <div class="measure-main">
+          ${m.height_cm ? `${m.height_cm}cm` : ''}${m.weight_kg ? ` / ${m.weight_kg}kg` : ''}
+        </div>
+        <div class="measure-sub">
+          ${m.tops_size ? `トップス：${m.tops_size}　` : ''}${m.bottoms_size ? `ボトムス：${m.bottoms_size}　` : ''}${m.shoe_size_cm ? `靴：${m.shoe_size_cm}cm` : ''}
+        </div>
+        ${m.note ? `<div class="measure-note">${m.note}</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ─── ブランド表示ON/OFF（localStorage） ─────────
+function getBrandVisible(name) {
+  const v = localStorage.getItem('bv_' + name);
+  return v === null ? true : v === '1';
+}
+function setBrandVisible(name, val) {
+  localStorage.setItem('bv_' + name, val ? '1' : '0');
+}
+function toggleBrandVisible(name) {
+  const newVal = !getBrandVisible(name);
+  setBrandVisible(name, newVal);
+  renderBrands();
+  renderPredict();
+}
+
+// ─── クローゼットタブ ────────────────────────
+function renderCloset() {
+  const el = document.getElementById('tab-closet');
+  let html = '<p style="font-size:.8rem;color:#aaa;margin-bottom:16px;line-height:1.6">各サイズの枚数を記録できます。</p>';
+
+  const latest = measurements[0];
+  const currentClothes = latest ? (latest.tops_size || latest.clothing_size || getClothingSize(latest.height_cm)) : null;
+  const currentBottoms = latest ? (latest.bottoms_size || latest.clothing_size || getClothingSize(latest.height_cm)) : null;
+  const currentShoe   = latest ? (latest.shoe_size_cm ? String(parseFloat(latest.shoe_size_cm).toFixed(1)) : null) : null;
+
+  WARDROBE_CATS.forEach(cat => {
+    const isShoe = cat.key === '靴';
+    const isBottoms = cat.key === 'ボトムス' || cat.key === '下着';
+    const currentSz = isShoe ? currentShoe : (isBottoms ? currentBottoms : currentClothes);
+
+    html += `<div class="closet-cat">
+      <div class="closet-cat-title">${cat.key}</div>
+      <div class="closet-sizes">`;
+    cat.sizes.forEach(sz => {
+      // 現在サイズ未満は、在庫がある場合のみ表示
+      if (currentSz) {
+        const below = isShoe ? parseFloat(sz) < parseFloat(currentSz) : CLOTHING_SIZES.indexOf(sz) < CLOTHING_SIZES.indexOf(currentSz);
+        const item = wardrobe.find(w => w.category === cat.key && w.size === sz);
+        if (below && (!item || item.count === 0)) return;
+      }
+      const item = wardrobe.find(w => w.category === cat.key && w.size === sz);
+      const count = item ? item.count : 0;
+      const memo = item ? (item.memo || '') : '';
+      html += `
+        <div class="closet-chip" id="chip-${cat.key}-${sz}">
+          <div class="closet-chip-size">${sz}</div>
+          <div class="closet-chip-ctrl">
+            <button class="closet-chip-btn" onclick="adjWardrobe('${cat.key}','${sz}',-1)">－</button>
+            <span class="closet-chip-count">${count}</span>
+            <button class="closet-chip-btn" onclick="adjWardrobe('${cat.key}','${sz}',1)">＋</button>
+          </div>
+          ${count > 0 ? `<input class="closet-memo" type="text" value="${memo.replace(/"/g,'&quot;')}" placeholder="メモ" onchange="saveMemo('${cat.key}','${sz}',this.value)">` : ''}
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+async function adjWardrobe(category, size, delta) {
+  const item = wardrobe.find(w => w.category === category && w.size === size);
+  const newCount = Math.max(0, (item ? item.count : 0) + delta);
+  const memo = item ? (item.memo || '') : '';
+
+  if (item) {
+    await sb.from('size_wardrobe').update({ count: newCount, updated_at: new Date().toISOString() }).eq('id', item.id);
+    item.count = newCount;
+  } else if (newCount > 0) {
+    const { data } = await sb.from('size_wardrobe').insert({ child_id: currentChildId, category, size, count: newCount, memo: '' }).select().single();
+    if (data) wardrobe.push(data);
+  }
+  renderCloset();
+}
+
+async function saveMemo(category, size, memo) {
+  const item = wardrobe.find(w => w.category === category && w.size === size);
+  if (!item) return;
+  await sb.from('size_wardrobe').update({ memo, updated_at: new Date().toISOString() }).eq('id', item.id);
+  item.memo = memo;
+}
+
+// ─── ブランドタブ ─────────────────────────────
+function renderBrands() {
+  const el = document.getElementById('tab-brands');
+  let html = '<p style="font-size:.8rem;color:#888;margin-bottom:14px;line-height:1.6">ON/OFFで予測表への表示を切り替えられます。サイズ感の調整・メモも保存できます。</p>';
+
+  html += `<div class="section-title" style="margin-bottom:12px">服ブランド</div>`;
+  BRANDS.clothes.forEach(b => { html += buildBrandEditRow(b.name, '服', b.defaultOffset, b.defaultNote, false); });
+  html += `<div class="section-title" style="margin:16px 0 12px">靴ブランド</div>`;
+  BRANDS.shoes.forEach(b => { html += buildBrandEditRow(b.name, '靴', b.defaultOffsetCm, b.defaultNote, true); });
+
+  el.innerHTML = html;
+}
+
+function buildBrandEditRow(brandName, category, defaultOffset, defaultNote, isShoe) {
+  const stored = brandNotes.find(n => n.brand_name === brandName && n.category === category);
+  const offset = stored ? (isShoe ? parseFloat(stored.shoe_offset_cm || 0) : stored.size_offset) : defaultOffset;
+  const userNote = stored ? stored.user_note : defaultNote;
+  const safeId = `b-${category}-${brandName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const offsetLabel = isShoe ? 'サイズ調整 (cm)' : 'サイズ調整 (段階)';
+  const step = isShoe ? 0.5 : 1;
+  const dispOffset = offset >= 0 ? `+${offset}` : `${offset}`;
+  const visible = getBrandVisible(brandName);
+
+  return `
+  <div class="brand-edit-row" style="opacity:${visible ? 1 : 0.5}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="brand-edit-name" style="margin-bottom:0">${brandName}</div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;color:${visible?'var(--child-color)':'#aaa'}">
+        <input type="checkbox" ${visible?'checked':''} onchange="toggleBrandVisible('${brandName}')" style="width:18px;height:18px;accent-color:var(--child-color);cursor:pointer">
+        予測に表示
+      </label>
+    </div>
+    <div class="offset-control">
+      <span class="offset-label">${offsetLabel}</span>
+      <button class="offset-btn" onclick="adjOffset('${safeId}', -${step}, ${isShoe})">−</button>
+      <span class="offset-val" id="${safeId}-val">${dispOffset}</span>
+      <input type="hidden" id="${safeId}-input" value="${offset}">
+      <button class="offset-btn" onclick="adjOffset('${safeId}', ${step}, ${isShoe})">＋</button>
+    </div>
+    <div class="form-group">
+      <input class="form-input" id="${safeId}-note" type="text" value="${userNote.replace(/"/g,'&quot;')}" placeholder="メモ（例：丈が長め）" style="font-size:.85rem;padding:8px 10px">
+    </div>
+    <button class="save-brand-btn" onclick="saveBrandNote('${brandName}','${category}',${isShoe})">保存</button>
+  </div>`;
+}
+
+function adjOffset(safeId, step, isShoe) {
+  const input = document.getElementById(`${safeId}-input`);
+  const val = Math.round((parseFloat(input.value) + step) * 10) / 10;
+  input.value = val;
+  document.getElementById(`${safeId}-val`).textContent = val >= 0 ? `+${val}` : `${val}`;
+}
+
+async function saveBrandNote(brandName, category, isShoe) {
+  const safeId = `b-${category}-${brandName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const offset = parseFloat(document.getElementById(`${safeId}-input`).value);
+  const noteText = document.getElementById(`${safeId}-note`).value;
+  const existing = brandNotes.find(n => n.brand_name === brandName && n.category === category);
+
+  const record = {
+    child_id: currentChildId,
+    brand_name: brandName,
+    category,
+    size_offset: isShoe ? 0 : Math.round(offset),
+    shoe_offset_cm: isShoe ? offset : 0,
+    user_note: noteText,
+    updated_at: new Date().toISOString(),
+  };
+
+  let error;
+  if (existing) {
+    ({ error } = await sb.from('size_brand_notes').update(record).eq('id', existing.id));
+  } else {
+    ({ error } = await sb.from('size_brand_notes').insert(record));
+  }
+
+  if (error) { showToast('保存に失敗しました'); return; }
+  showToast('保存しました');
+  brandNotes = await fetchBrandNotes(currentChildId);
+}
+
+// ─── アイコン・カラーピッカー ─────────────────
+function renderIconPicker() {
+  document.getElementById('icon-picker').innerHTML = CHILD_ICONS.map(ic =>
+    `<button class="icon-btn${ic === selectedIcon ? ' selected' : ''}" onclick="selectIcon('${ic}')">${ic}</button>`
+  ).join('');
+}
+function renderColorPicker() {
+  document.getElementById('color-picker').innerHTML = CHILD_COLORS.map(col =>
+    `<div class="color-dot${col === selectedColor ? ' selected' : ''}" style="background:${col}" onclick="selectColor('${col}')"></div>`
+  ).join('');
+}
+function selectIcon(ic) { selectedIcon = ic; renderIconPicker(); }
+function selectColor(col) { selectedColor = col; renderColorPicker(); }
+
+// ─── 子どもモーダル ───────────────────────────
+function openChildModal(childId = null) {
+  editingChildId = childId;
+  document.getElementById('child-modal-title').textContent = childId ? '子どもを編集' : '子どもを追加';
+  document.getElementById('delete-child-btn').style.display = childId ? 'block' : 'none';
+  if (childId) {
+    const c = children.find(x => x.id === childId);
+    document.getElementById('f-child-name').value = c.name;
+    const [by, bm, bd] = c.birthdate.split('-');
+    document.getElementById('f-child-birth-y').value = parseInt(by);
+    document.getElementById('f-child-birth-m').value = parseInt(bm);
+    document.getElementById('f-child-birth-d').value = parseInt(bd);
+    document.getElementById('f-child-gender').value = c.gender || '不明';
+    selectedIcon = c.icon || '🎀';
+    selectedColor = c.color || '#FF8FAB';
+  } else {
+    document.getElementById('f-child-name').value = '';
+    document.getElementById('f-child-birth-y').value = '';
+    document.getElementById('f-child-birth-m').value = '';
+    document.getElementById('f-child-birth-d').value = '';
+    document.getElementById('f-child-gender').value = '不明';
+    selectedIcon = CHILD_ICONS[children.length % CHILD_ICONS.length];
+    selectedColor = CHILD_COLORS[children.length % CHILD_COLORS.length];
+  }
+  renderIconPicker();
+  renderColorPicker();
+  document.getElementById('child-modal').classList.add('open');
+}
+function closeChildModal() { document.getElementById('child-modal').classList.remove('open'); }
+
+async function saveChild() {
+  const name = document.getElementById('f-child-name').value.trim();
+  const by = document.getElementById('f-child-birth-y').value;
+  const bm = document.getElementById('f-child-birth-m').value;
+  const bd = document.getElementById('f-child-birth-d').value;
+  const birthdate = (by && bm && bd) ? `${by}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}` : '';
+  const gender = document.getElementById('f-child-gender').value;
+  if (!name || !birthdate) { showToast('名前と生年月日を入力してください'); return; }
+
+  const record = { name, birthdate, gender, icon: selectedIcon, color: selectedColor };
+  if (!editingChildId) record.sort_order = children.length;
+
+  let error;
+  if (editingChildId) {
+    ({ error } = await sb.from('size_children').update(record).eq('id', editingChildId));
+  } else {
+    ({ error } = await sb.from('size_children').insert(record));
+  }
+  if (error) { showToast('エラー: ' + (error.message || JSON.stringify(error))); console.error(error); return; }
+  closeChildModal();
+  children = await fetchChildren();
+  renderHome();
+  showToast('保存しました');
+  if (editingChildId) document.getElementById('child-hdr-name').textContent = `${selectedIcon} ${name}`;
+}
+
+async function deleteChild() {
+  const c = children.find(x => x.id === editingChildId);
+  if (!confirm(`${c?.name}を削除しますか？計測データもすべて削除されます。`)) return;
+  const { error } = await sb.from('size_children').delete().eq('id', editingChildId);
+  if (error) { showToast('削除に失敗しました'); return; }
+  closeChildModal();
+  children = await fetchChildren();
+  showHome();
+  renderHome();
+  showToast('削除しました');
+}
+
+// ─── 計測モーダル ─────────────────────────────
+function openMeasureModal(measureId = null) {
+  editingMeasureId = measureId;
+  document.getElementById('measure-modal-title').textContent = measureId ? '計測を編集' : '計測を記録';
+  document.getElementById('delete-measure-btn').style.display = measureId ? 'block' : 'none';
+  if (measureId) {
+    const m = measurements.find(x => x.id === measureId);
+    document.getElementById('f-m-date').value = m.measured_at;
+    document.getElementById('f-m-height').value = m.height_cm || '';
+    document.getElementById('f-m-weight').value = m.weight_kg || '';
+    document.getElementById('f-m-tops').value = m.tops_size || '';
+    document.getElementById('f-m-bottoms').value = m.bottoms_size || '';
+    document.getElementById('f-m-shoe').value = m.shoe_size_cm || '';
+    document.getElementById('f-m-note').value = m.note || '';
+  } else {
+    document.getElementById('f-m-date').value = new Date().toISOString().split('T')[0];
+    ['f-m-height','f-m-weight','f-m-shoe','f-m-note'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-m-tops').value = '';
+    document.getElementById('f-m-bottoms').value = '';
+  }
+  document.getElementById('measure-modal').classList.add('open');
+}
+function closeMeasureModal() { document.getElementById('measure-modal').classList.remove('open'); }
+
+async function saveMeasurement() {
+  const date     = document.getElementById('f-m-date').value;
+  const height   = document.getElementById('f-m-height').value;
+  const weight   = document.getElementById('f-m-weight').value;
+  const tops     = document.getElementById('f-m-tops').value;
+  const bottoms  = document.getElementById('f-m-bottoms').value;
+  const shoe     = document.getElementById('f-m-shoe').value;
+  const note     = document.getElementById('f-m-note').value.trim();
+  if (!date) { showToast('日付を入力してください'); return; }
+  if (!height) { showToast('身長を入力してください（予測に必要です）'); return; }
+
+  const record = {
+    child_id: currentChildId,
+    measured_at: date,
+    height_cm: parseFloat(height),
+    weight_kg: weight ? parseFloat(weight) : null,
+    tops_size: tops || null,
+    bottoms_size: bottoms || null,
+    shoe_size_cm: shoe ? parseFloat(shoe) : null,
+    note: note || '',
+  };
+
+  let error;
+  if (editingMeasureId) {
+    ({ error } = await sb.from('size_measurements').update(record).eq('id', editingMeasureId));
+  } else {
+    ({ error } = await sb.from('size_measurements').insert(record));
+  }
+  if (error) { showToast('保存に失敗しました'); return; }
+  closeMeasureModal();
+  measurements = await fetchMeasurements(currentChildId);
+  showTab(currentTab);
+  showToast('保存しました');
+}
+
+async function deleteMeasurement() {
+  if (!confirm('この計測記録を削除しますか？')) return;
+  const { error } = await sb.from('size_measurements').delete().eq('id', editingMeasureId);
+  if (error) { showToast('削除に失敗しました'); return; }
+  closeMeasureModal();
+  measurements = await fetchMeasurements(currentChildId);
+  showTab(currentTab);
+  showToast('削除しました');
+}
+
+// ─── モーダル外タップで閉じる ────────────────
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+});
+
+// ─── 年・日セレクト初期化 ─────────────────────
+function initBirthSelects() {
+  const ySelect = document.getElementById('f-child-birth-y');
+  const now = new Date().getFullYear();
+  for (let y = now; y >= now - 15; y--) {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y + '年';
+    ySelect.appendChild(opt);
+  }
+  const dSelect = document.getElementById('f-child-birth-d');
+  for (let d = 1; d <= 31; d++) {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = d + '日';
+    dSelect.appendChild(opt);
+  }
+}
+
+// ─── 初期化 ───────────────────────────────────
+async function init() {
+  initBirthSelects();
+  children = await fetchChildren();
+  document.getElementById('loading').style.display = 'none';
+  showHome();
+  renderHome();
+}
+
+init();
+</script>
+</body>
+</html>
