@@ -859,7 +859,7 @@ function renderCloset() {
         <textarea
           id="memo-${period.key}"
           style="width:100%;min-height:100px;padding:10px 12px;border:1px solid ${border};border-radius:8px;font-size:.85rem;font-family:inherit;color:#444;resize:vertical;background:#fff;outline:none;box-sizing:border-box;line-height:1.7"
-          placeholder="メモ（保管場所・ブランド名・コメントなど）"
+          placeholder=""
           onblur="savePeriodMemo('${period.key}', this.value)"
         >${memoText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
       </div>`;
