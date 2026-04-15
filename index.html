@@ -652,14 +652,13 @@ function renderPredict() {
     const isSummer = t.cls === 'summer';
     const isWinter = t.cls === 'winter' || t.cls === 'year1' || t.cls === 'year2';
     const outerSize = clampClothing(topsIdx + 1);
-    const topsLabel = isSummer ? '半袖' : '長袖';
     return `
     <div class="predict-card ${t.cls}">
       <div class="predict-label">${t.icon ? t.icon + ' ' : ''}${t.label}</div>
       <div class="predict-date">${t.dateStr}頃</div>
       <div class="predict-height">身長 約${pH}cm</div>
       <div class="predict-size">
-        <span>${topsLabel} ${topsSize}</span>
+        <span>上 ${topsSize}</span>
         <span>下 ${bottomsSize}</span>
         <span>👟 ${shoeSize}</span>
       </div>
