@@ -1075,9 +1075,13 @@ function openMeasureModal(measureId = null) {
     document.getElementById('f-m-note').value = m.note || '';
   } else {
     document.getElementById('f-m-date').value = new Date().toISOString().split('T')[0];
-    ['f-m-height','f-m-weight','f-m-shoe','f-m-note'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('f-m-tops').value = '';
-    document.getElementById('f-m-bottoms').value = '';
+    const prev = measurements[0];
+    document.getElementById('f-m-height').value  = prev ? (prev.height_cm || '') : '';
+    document.getElementById('f-m-weight').value  = prev ? (prev.weight_kg || '') : '';
+    document.getElementById('f-m-tops').value    = prev ? (prev.tops_size || '') : '';
+    document.getElementById('f-m-bottoms').value = prev ? (prev.bottoms_size || '') : '';
+    document.getElementById('f-m-shoe').value    = prev ? (prev.shoe_size_cm || '') : '';
+    document.getElementById('f-m-note').value    = '';
   }
   document.getElementById('measure-modal').classList.add('open');
 }
