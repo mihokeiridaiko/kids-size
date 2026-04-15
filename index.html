@@ -736,9 +736,20 @@ function renderHistory() {
     el.innerHTML = '<div class="no-data">計測記録がありません。<br>＋ボタンから記録してください。</div>';
     return;
   }
-  el.innerHTML = measurements.map(m => `
+  const child = children.find(c => c.id === currentChildId);
+  el.innerHTML = measurements.map(m => {
+    let ageLabel = '';
+    if (child && child.birthdate && m.measured_at) {
+      const totalM = getAgeMonthsAt(child.birthdate, m.measured_at);
+      if (totalM >= 0) {
+        const y = Math.floor(totalM / 12);
+        const mo = totalM % 12;
+        ageLabel = y > 0 ? `${y}歳${mo > 0 ? mo + 'か月' : ''}` : `${mo}か月`;
+      }
+    }
+    return `
     <div class="measure-card" onclick="openMeasureModal('${m.id}')">
-      <div class="measure-date">${fmtDate(m.measured_at)}</div>
+      <div class="measure-date">${fmtDate(m.measured_at)}${ageLabel ? `<div style="font-size:.72rem;font-weight:400;color:#aaa;margin-top:2px">${ageLabel}</div>` : ''}</div>
       <div class="measure-data">
         <div class="measure-main">
           ${m.height_cm ? `${m.height_cm}cm` : ''}${m.weight_kg ? ` / ${m.weight_kg}kg` : ''}
@@ -748,7 +759,8 @@ function renderHistory() {
         </div>
         ${m.note ? `<div class="measure-note">${m.note}</div>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ─── ブランド表示ON/OFF（localStorage） ─────────
