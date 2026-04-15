@@ -652,10 +652,13 @@ function renderPredict() {
     const isSummer = t.cls === 'summer';
     const isWinter = t.cls === 'winter' || t.cls === 'year1' || t.cls === 'year2';
     const outerSize = clampClothing(topsIdx + 1);
+    const ageY = Math.floor(futAgeM / 12);
+    const ageM = futAgeM % 12;
+    const ageStr = ageY > 0 ? `${ageY}歳${ageM > 0 ? ageM + 'か月' : ''}` : `${ageM}か月`;
     return `
     <div class="predict-card ${t.cls}">
       <div class="predict-label">${t.icon ? t.icon + ' ' : ''}${t.label}</div>
-      <div class="predict-date">${t.dateStr}頃</div>
+      <div class="predict-date">${t.dateStr}頃・${ageStr}</div>
       <div class="predict-height">身長 約${pH}cm</div>
       <div class="predict-size">
         <span>上 ${topsSize}</span>
