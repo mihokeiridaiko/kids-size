@@ -627,10 +627,10 @@ function renderPredict() {
   const personalRate = getPersonalGrowthRate(measurements);
   const avgRate = Math.round(getGrowthRate(curAgeM) * 100) / 100;
   const rateNote = personalRate !== null
-    ? `<div style="font-size:.75rem;color:var(--child-color);background:#f0f2ff;padding:6px 12px;border-radius:8px;margin-bottom:14px">📈 この子の実績ペース ${personalRate}cm/月 を反映（近い将来ほど重視）</div>`
+    ? `<div style="font-size:.75rem;color:var(--child-color);background:#f0f2ff;padding:6px 12px;border-radius:8px;margin-bottom:14px">📈 この子の実績ペース ${personalRate}cm/月 を反映</div>`
     : measurements.length >= 2
-      ? `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">計測間隔が短いため平均値で予測中（3ヶ月以上の記録で個人ペース反映）</div>`
-      : `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">記録が1件のため平均値で予測中（複数記録で個人ペース反映）</div>`;
+      ? `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">計測間隔が短いため平均値で予測中</div>`
+      : `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">記録が1件のため平均値で予測中</div>`;
 
   // 現在サイズの最低ライン（clothing_sizeも考慮）
   const currentTopsIdx    = CLOTHING_SIZES.indexOf(latest.tops_size    || latest.clothing_size || getClothingSize(latest.height_cm));
