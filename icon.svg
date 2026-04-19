@@ -5,30 +5,14 @@
       <stop offset="100%" stop-color="#f472b6"/>
     </linearGradient>
   </defs>
-  <!-- 背景 -->
   <rect width="512" height="512" rx="90" fill="url(#g)"/>
-  <!-- Tシャツ -->
+  <!-- Tシャツ（ラウンドネック） -->
   <path d="
-    M 190 175
-    L 125 145 L 92 218 L 162 242
-    L 162 378 L 350 378 L 350 242
-    L 420 218 L 387 145 L 322 175
-    Q 308 208 256 202
-    Q 204 208 190 175 Z
-  " fill="white" opacity="0.93"/>
-  <!-- 物差し -->
-  <rect x="144" y="408" width="224" height="38" rx="10" fill="white" opacity="0.55"/>
-  <g stroke="#8b5cf6" stroke-width="3" stroke-linecap="round">
-    <line x1="172" y1="408" x2="172" y2="446"/>
-    <line x1="196" y1="416" x2="196" y2="446"/>
-    <line x1="220" y1="408" x2="220" y2="446"/>
-    <line x1="244" y1="416" x2="244" y2="446"/>
-    <line x1="268" y1="408" x2="268" y2="446"/>
-    <line x1="292" y1="416" x2="292" y2="446"/>
-    <line x1="316" y1="408" x2="316" y2="446"/>
-    <line x1="340" y1="416" x2="340" y2="446"/>
-  </g>
-  <!-- 星 -->
-  <text x="390" y="115" font-size="52" opacity="0.7">⭐</text>
-  <text x="70" y="390" font-size="36" opacity="0.5">✨</text>
+    M 188 148
+    C 200 188 220 205 256 202
+    C 292 205 312 188 324 148
+    L 415 122 L 445 210 L 355 238
+    L 355 400 L 157 400 L 157 238
+    L 67 210 L 97 122 Z
+  " fill="white" opacity="0.92"/>
 </svg>
