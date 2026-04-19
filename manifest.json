@@ -1,0 +1,11 @@
+{
+  "name": "こどもサイズ予測",
+  "short_name": "サイズ予測",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#faf5ff",
+  "theme_color": "#7c6ff7",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
