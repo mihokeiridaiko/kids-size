@@ -355,21 +355,22 @@ const WARDROBE_CATS = [
 ];
 
 // ─── ブランドデータ ────────────────────────────
+// dryerSens: 0=縮みにくい, 1=普通, 2=縮みやすい
 const BRANDS = {
   clothes: [
-    { name: '西松屋',    defaultOffset: 1,  defaultNote: '小さめ。1サイズ上を目安に。' },
-    { name: 'H&M',      defaultOffset: 1,  defaultNote: 'やや小さめ。1サイズ上を目安に。' },
-    { name: 'しまむら',  defaultOffset: 0,  defaultNote: '標準的なサイズ感。' },
-    { name: 'バースデイ', defaultOffset: 0, defaultNote: '標準的。丈はやや短め。' },
-    { name: 'デビロック', defaultOffset: 0, defaultNote: '標準的。丈やや長め。' },
-    { name: 'ユニクロ',  defaultOffset: 0,  defaultNote: '標準的。縮みにくい。' },
-    { name: 'GU',       defaultOffset: 0,  defaultNote: '標準的。ユニクロより少し小さめの場合あり。' },
-    { name: '無印良品',     defaultOffset: 0,  defaultNote: '標準的。シンプルなデザイン。' },
-    { name: 'F.O.KIDS',   defaultOffset: 0,  defaultNote: '標準的。ややカジュアル系。' },
-    { name: 'BREEZE',     defaultOffset: 0,  defaultNote: 'F.O.KIDSブランド。標準的。' },
-    { name: 'エバークローゼット', defaultOffset: 0, defaultNote: '標準的なサイズ感。' },
-    { name: 'ブランシェス', defaultOffset: 0, defaultNote: '標準的。丈やや長め。' },
-    { name: 'ペアマノン',  defaultOffset: 0,  defaultNote: '標準的。ガーリー系。' },
+    { name: '西松屋',    defaultOffset: 1, dryerSens: 2, defaultNote: '小さめ。1サイズ上を目安に。' },
+    { name: 'H&M',      defaultOffset: 1, dryerSens: 2, defaultNote: 'やや小さめ。1サイズ上を目安に。' },
+    { name: 'しまむら',  defaultOffset: 0, dryerSens: 1, defaultNote: '標準的なサイズ感。' },
+    { name: 'バースデイ', defaultOffset: 0, dryerSens: 1, defaultNote: '標準的。丈はやや短め。' },
+    { name: 'デビロック', defaultOffset: 0, dryerSens: 1, defaultNote: '標準的。丈やや長め。' },
+    { name: 'ユニクロ',  defaultOffset: 0, dryerSens: 0, defaultNote: '標準的。縮みにくい素材が多い。' },
+    { name: 'GU',       defaultOffset: 0, dryerSens: 1, defaultNote: '標準的。ユニクロより少し小さめの場合あり。' },
+    { name: '無印良品',     defaultOffset: 0, dryerSens: 1, defaultNote: '標準的。シンプルなデザイン。' },
+    { name: 'F.O.KIDS',   defaultOffset: 0, dryerSens: 1, defaultNote: '標準的。ややカジュアル系。' },
+    { name: 'BREEZE',     defaultOffset: 0, dryerSens: 1, defaultNote: 'F.O.KIDSブランド。標準的。' },
+    { name: 'エバークローゼット', defaultOffset: 0, dryerSens: 1, defaultNote: '標準的なサイズ感。' },
+    { name: 'ブランシェス', defaultOffset: 0, dryerSens: 1, defaultNote: '標準的。丈やや長め。' },
+    { name: 'ペアマノン',  defaultOffset: 0, dryerSens: 1, defaultNote: '標準的。ガーリー系。' },
   ],
   shoes: [
     { name: 'イフミー',      defaultOffsetCm: -0.5, defaultNote: 'ゆったり目。0.5cm小さめでも◎' },
@@ -400,24 +401,31 @@ const SIZE_TABLE = [
   { size: '150', tate: 60, haba: 43 },
 ];
 
-// 乾燥機レベル（高いほど縮み想定で大きめサイズを推奨）
+// 乾燥機グローバル設定レベル
 const DRYER_LEVELS = [
-  { label: '使わない', extra: 0 },
-  { label: 'たまに',   extra: 0.5 },
-  { label: 'よく使う', extra: 1 },
-  { label: 'ガンガン', extra: 2 },
+  { label: '使わない' },
+  { label: 'たまに使う' },
+  { label: 'よく使う' },
+  { label: 'ガンガン使う' },
+];
+
+// 乾燥機レベル × ブランド縮みやすさ → 追加サイズ数
+// DRYER_EXTRA[global_level][dryerSens(0=低,1=中,2=高)]
+const DRYER_EXTRA = [
+  [0, 0, 0],
+  [0, 0, 1],
+  [0, 1, 1],
+  [0, 1, 2],
 ];
 
 function getUserLooseCm() { return parseInt(localStorage.getItem('loose_cm') || '0'); }
 function setUserLooseCm(v) { localStorage.setItem('loose_cm', String(v)); renderBrands(); renderPredict(); }
-function getUserDryerLevel(brandName) {
-  const v = localStorage.getItem('dryer_' + brandName);
-  return v !== null ? parseInt(v) : 0;
-}
-function setUserDryerLevel(brandName, level) {
-  localStorage.setItem('dryer_' + brandName, String(level));
-  renderBrands();
-  renderPredict();
+function getGlobalDryerLevel() { return parseInt(localStorage.getItem('global_dryer') || '0'); }
+function setGlobalDryerLevel(v) { localStorage.setItem('global_dryer', String(v)); renderBrands(); renderPredict(); }
+function getBrandDryerExtra(brand) {
+  const level = getGlobalDryerLevel();
+  const sens = brand.dryerSens ?? 1;
+  return DRYER_EXTRA[level][sens];
 }
 
 // ─── 成長予測 ─────────────────────────────────
@@ -710,14 +718,14 @@ function renderPredict() {
     </div>`;
   }).join('');
 
-  // ブランドグループ計算（服）- 乾燥機レベルを加味した total offset でグループ化
+  // ブランドグループ計算（服）- グローバル乾燥機設定×ブランド縮みやすさ でグループ化
   const clothesGroups = {};
   BRANDS.clothes.forEach(brand => {
     if (!getBrandVisible(brand.name)) return;
     const note = brandNotes.find(n => n.brand_name === brand.name && n.category === '服');
     const baseOffset = note ? note.size_offset : brand.defaultOffset;
-    const dryerExtra = DRYER_LEVELS[getUserDryerLevel(brand.name)]?.extra ?? 0;
-    const totalOff = Math.round(baseOffset + dryerExtra);
+    const dryerExtra = getBrandDryerExtra(brand);
+    const totalOff = baseOffset + dryerExtra;
     if (!clothesGroups[totalOff]) clothesGroups[totalOff] = [];
     clothesGroups[totalOff].push(brand.name);
   });
@@ -967,45 +975,53 @@ async function savePeriodMemo(period, memo) {
 function renderBrands() {
   const el = document.getElementById('tab-brands');
   const looseCm = getUserLooseCm();
+  const dryerLevel = getGlobalDryerLevel();
 
   let html = `
-  <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,.07)">
-    <div style="font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:8px">📏 ゆったり余裕設定（全ブランド共通）</div>
-    <div style="font-size:.76rem;color:#888;margin-bottom:10px;line-height:1.6">大きめで着せたい・買い置き用など。設定すると予測サイズ全体に反映されます。</div>
+  <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.07)">
+    <div style="font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:8px">📏 ゆったり余裕設定</div>
+    <div style="font-size:.76rem;color:#888;margin-bottom:10px;line-height:1.6">大きめで着せたい・買い置き用など。予測サイズ全体に反映されます。</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${[0,1,2,3].map(v => `
+      ${[[0,'そのまま'],[5,'少し大きめ (+5cm)'],[10,'大きめ (+10cm)']].map(([v,label]) => `
         <button onclick="setUserLooseCm(${v})" style="
           padding:7px 14px;border-radius:10px;border:2px solid ${v===looseCm?'var(--child-color)':'#e0e0e0'};
           background:${v===looseCm?'var(--child-color)':'#fff'};
           color:${v===looseCm?'#fff':'#555'};
           font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">
-          ${v===0?'そのまま':'+'+v+'cm'}
+          ${label}
+        </button>`).join('')}
+    </div>
+  </div>
+
+  <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,.07)">
+    <div style="font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:8px">🌀 乾燥機設定</div>
+    <div style="font-size:.76rem;color:#888;margin-bottom:10px;line-height:1.6">縮みやすいブランドは自動で大きめサイズを推奨します。ユニクロなど縮みにくいブランドは影響が小さくなります。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${DRYER_LEVELS.map((d, i) => `
+        <button onclick="setGlobalDryerLevel(${i})" style="
+          padding:7px 14px;border-radius:10px;border:2px solid ${i===dryerLevel?'var(--child-color)':'#e0e0e0'};
+          background:${i===dryerLevel?'var(--child-color)':'#fff'};
+          color:${i===dryerLevel?'#fff':'#555'};
+          font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">
+          ${d.label}
         </button>`).join('')}
     </div>
   </div>`;
 
   html += `<div class="section-title" style="margin-bottom:12px">服ブランド</div>`;
   BRANDS.clothes.forEach(b => {
-    const dryerLevel = getUserDryerLevel(b.name);
+    const extra = getBrandDryerExtra(b);
+    const dryerBadge = dryerLevel === 0 ? '' :
+      extra > 0
+        ? `<span style="font-size:.72rem;background:#fff3e0;color:#e65100;border-radius:6px;padding:2px 8px;font-weight:700;margin-left:6px">🌀 +${extra}サイズ</span>`
+        : `<span style="font-size:.72rem;background:#f5f5f5;color:#aaa;border-radius:6px;padding:2px 8px;margin-left:6px">縮みにくい</span>`;
     html += `
     <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
-        <div style="font-weight:700;font-size:.9rem;color:#2d3748;min-width:80px;flex-shrink:0">${b.name}</div>
-        <div style="font-size:.82rem;color:#555;line-height:1.6">${b.defaultNote}</div>
+      <div style="display:flex;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:2px">
+        <div style="font-weight:700;font-size:.9rem;color:#2d3748">${b.name}</div>
+        ${dryerBadge}
       </div>
-      <div>
-        <div style="font-size:.75rem;color:#888;margin-bottom:5px">🌀 乾燥機使用頻度（縮み対策で大きめサイズを提案）</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
-          ${DRYER_LEVELS.map((d, i) => `
-            <button onclick="setUserDryerLevel('${b.name}',${i})" style="
-              padding:5px 10px;border-radius:8px;border:1.5px solid ${i===dryerLevel?'var(--child-color)':'#ddd'};
-              background:${i===dryerLevel?'var(--child-color)':'#fff'};
-              color:${i===dryerLevel?'#fff':'#666'};
-              font-size:.75rem;cursor:pointer;font-family:inherit;font-weight:${i===dryerLevel?'600':'400'}">
-              ${d.label}${d.extra>0?' (+'+d.extra+')':''}
-            </button>`).join('')}
-        </div>
-      </div>
+      <div style="font-size:.82rem;color:#555;line-height:1.6">${b.defaultNote}</div>
     </div>`;
   });
 
