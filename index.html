@@ -387,6 +387,39 @@ const BRANDS = {
 
 const CLOTHING_SIZES = ['70','80','90','95','100','110','120','130','140','150'];
 
+// ─── 日本標準子供服サイズ表 ─────────────────────
+const SIZE_TABLE = [
+  { size: '80',  tate: 33, haba: 29 },
+  { size: '90',  tate: 36, haba: 31 },
+  { size: '95',  tate: 38, haba: 32 },
+  { size: '100', tate: 40, haba: 33 },
+  { size: '110', tate: 44, haba: 35 },
+  { size: '120', tate: 48, haba: 37 },
+  { size: '130', tate: 52, haba: 39 },
+  { size: '140', tate: 56, haba: 41 },
+  { size: '150', tate: 60, haba: 43 },
+];
+
+// 乾燥機レベル（高いほど縮み想定で大きめサイズを推奨）
+const DRYER_LEVELS = [
+  { label: '使わない', extra: 0 },
+  { label: 'たまに',   extra: 0.5 },
+  { label: 'よく使う', extra: 1 },
+  { label: 'ガンガン', extra: 2 },
+];
+
+function getUserLooseCm() { return parseInt(localStorage.getItem('loose_cm') || '0'); }
+function setUserLooseCm(v) { localStorage.setItem('loose_cm', String(v)); renderBrands(); renderPredict(); }
+function getUserDryerLevel(brandName) {
+  const v = localStorage.getItem('dryer_' + brandName);
+  return v !== null ? parseInt(v) : 0;
+}
+function setUserDryerLevel(brandName, level) {
+  localStorage.setItem('dryer_' + brandName, String(level));
+  renderBrands();
+  renderPredict();
+}
+
 // ─── 成長予測 ─────────────────────────────────
 // 月あたり成長量(cm) by 月齢
 const GROWTH_RATES = [
@@ -632,14 +665,18 @@ function renderPredict() {
 
   // 個人成長ペース
   const personalRate = getPersonalGrowthRate(measurements);
-  const avgRate = Math.round(getGrowthRate(curAgeM) * 100) / 100;
   const rateNote = personalRate !== null
-    ? `<div style="font-size:.75rem;color:var(--child-color);background:#f0f2ff;padding:6px 12px;border-radius:8px;margin-bottom:14px">📈 この子の実績ペース ${personalRate}cm/月 を反映</div>`
+    ? `<div style="font-size:.75rem;color:var(--child-color);background:#f0f2ff;padding:6px 12px;border-radius:8px;margin-bottom:10px">📈 この子の実績ペース ${personalRate}cm/月 を反映</div>`
     : measurements.length >= 2
-      ? `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">計測間隔が短いため平均値で予測中</div>`
-      : `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:14px">記録が1件のため平均値で予測中</div>`;
+      ? `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:10px">計測間隔が短いため平均値で予測中</div>`
+      : `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:10px">記録が1件のため平均値で予測中</div>`;
 
-  // 現在サイズの最低ライン（clothing_sizeも考慮）
+  const looseCm = getUserLooseCm();
+  const looseNote = looseCm > 0
+    ? `<div style="font-size:.75rem;color:var(--child-color);background:#f0ebff;padding:6px 12px;border-radius:8px;margin-bottom:10px">📏 ゆったり +${looseCm}cm を反映中（ブランドタブで変更）</div>`
+    : '';
+
+  // 現在サイズの最低ライン
   const currentTopsIdx    = CLOTHING_SIZES.indexOf(latest.tops_size    || latest.clothing_size || getClothingSize(latest.height_cm));
   const currentBottomsIdx = CLOTHING_SIZES.indexOf(latest.bottoms_size || latest.clothing_size || getClothingSize(latest.height_cm));
   const currentShoe = parseFloat(latest.shoe_size_cm || getShoeSize(latest.height_cm));
@@ -648,16 +685,14 @@ function renderPredict() {
   function clampBottoms(idx) { return CLOTHING_SIZES[Math.max(currentBottomsIdx, Math.min(CLOTHING_SIZES.length-1, idx))]; }
   function clampShoe(val) { return Math.max(currentShoe, val); }
 
-  // 予測カード
+  // 予測カード（ゆったり余裕を身長に加算してサイズ算出）
   const cards = targets.map(t => {
     const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
     const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
-    const topsIdx     = CLOTHING_SIZES.indexOf(getClothingSize(pH));
+    const topsIdx     = CLOTHING_SIZES.indexOf(getClothingSize(pH + looseCm));
     const topsSize    = clampClothing(topsIdx);
     const bottomsSize = clampBottoms(topsIdx);
     const shoeSize    = (Math.round(clampShoe(parseFloat(getShoeSize(pH))) * 2) / 2).toFixed(1);
-    const isSummer = t.cls === 'summer';
-    const isWinter = t.cls === 'winter' || t.cls === 'year1' || t.cls === 'year2';
     const outerSize = clampClothing(topsIdx + 1);
     const ageY = Math.floor(futAgeM / 12);
     const ageM = futAgeM % 12;
@@ -675,14 +710,16 @@ function renderPredict() {
     </div>`;
   }).join('');
 
-  // ブランドグループ計算（服）
+  // ブランドグループ計算（服）- 乾燥機レベルを加味した total offset でグループ化
   const clothesGroups = {};
   BRANDS.clothes.forEach(brand => {
     if (!getBrandVisible(brand.name)) return;
     const note = brandNotes.find(n => n.brand_name === brand.name && n.category === '服');
-    const offset = note ? note.size_offset : brand.defaultOffset;
-    if (!clothesGroups[offset]) clothesGroups[offset] = [];
-    clothesGroups[offset].push(brand.name);
+    const baseOffset = note ? note.size_offset : brand.defaultOffset;
+    const dryerExtra = DRYER_LEVELS[getUserDryerLevel(brand.name)]?.extra ?? 0;
+    const totalOff = Math.round(baseOffset + dryerExtra);
+    if (!clothesGroups[totalOff]) clothesGroups[totalOff] = [];
+    clothesGroups[totalOff].push(brand.name);
   });
 
   const clothesCards = Object.entries(clothesGroups)
@@ -692,8 +729,8 @@ function renderPredict() {
       const rows = targets.map(t => {
         const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
         const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
-        const tops    = clampClothing(CLOTHING_SIZES.indexOf(getClothingSize(pH)) + off);
-        const bottoms = clampBottoms(CLOTHING_SIZES.indexOf(getClothingSize(pH)) + off);
+        const tops    = clampClothing(CLOTHING_SIZES.indexOf(getClothingSize(pH + looseCm)) + off);
+        const bottoms = clampBottoms(CLOTHING_SIZES.indexOf(getClothingSize(pH + looseCm)) + off);
         return `<div class="bpc-row"><span class="bpc-period">${t.label}</span><span class="bpc-sizes">上 <b>${tops}</b>　下 <b>${bottoms}</b></span></div>`;
       }).join('');
       return `<div class="bpc-card"><div class="bpc-name">${names.join('・')}</div>${rows}</div>`;
@@ -723,8 +760,19 @@ function renderPredict() {
       return `<div class="bpc-card"><div class="bpc-name">${names.join('・')}</div>${rows}</div>`;
     }).join('');
 
+  // SIZE_TABLE 参考（現在の有効サイズをハイライト）
+  const activeSizeLabel = getClothingSize(latest.height_cm + looseCm);
+  const sizeTableRows = SIZE_TABLE.map(s =>
+    `<tr${s.size === activeSizeLabel ? ' style="background:#f0ebff;font-weight:700"' : ''}>
+      <td class="td-size">${s.size}</td>
+      <td>${s.tate}</td>
+      <td>${s.haba}</td>
+    </tr>`
+  ).join('');
+
   el.innerHTML = `
     ${rateNote}
+    ${looseNote}
     <div class="predict-grid">${cards}</div>
     <div class="brand-section">
       <div class="section-title">服ブランド別サイズ</div>
@@ -733,7 +781,21 @@ function renderPredict() {
     <div class="brand-section">
       <div class="section-title">靴ブランド別サイズ</div>
       ${shoeCards || '<div class="no-data" style="padding:20px">ブランドタブでONにしてください</div>'}
-    </div>`;
+    </div>
+    <details style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-top:4px">
+      <summary style="font-size:.88rem;font-weight:700;color:#555;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
+        📐 子供服 標準サイズ目安表 <span style="color:#bbb;font-weight:400;font-size:.78rem">▾</span>
+      </summary>
+      <div style="margin-top:10px">
+        <div class="scroll-table">
+          <table>
+            <thead><tr><th>サイズ</th><th>着丈目安(cm)</th><th>身幅目安(cm)</th></tr></thead>
+            <tbody>${sizeTableRows}</tbody>
+          </table>
+        </div>
+        <p style="font-size:.72rem;color:#aaa;margin-top:8px;line-height:1.6">※メーカー・商品により異なります。参考値です。</p>
+      </div>
+    </details>`;
 }
 
 // ─── 記録タブ ─────────────────────────────────
@@ -904,14 +966,46 @@ async function savePeriodMemo(period, memo) {
 // ─── ブランドタブ ─────────────────────────────
 function renderBrands() {
   const el = document.getElementById('tab-brands');
-  let html = '<p style="font-size:.8rem;color:#888;margin-bottom:14px;line-height:1.6">各ブランドのサイズ感の特徴です。購入時の参考にしてください。</p>';
+  const looseCm = getUserLooseCm();
+
+  let html = `
+  <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,.07)">
+    <div style="font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:8px">📏 ゆったり余裕設定（全ブランド共通）</div>
+    <div style="font-size:.76rem;color:#888;margin-bottom:10px;line-height:1.6">大きめで着せたい・買い置き用など。設定すると予測サイズ全体に反映されます。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${[0,1,2,3].map(v => `
+        <button onclick="setUserLooseCm(${v})" style="
+          padding:7px 14px;border-radius:10px;border:2px solid ${v===looseCm?'var(--child-color)':'#e0e0e0'};
+          background:${v===looseCm?'var(--child-color)':'#fff'};
+          color:${v===looseCm?'#fff':'#555'};
+          font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">
+          ${v===0?'そのまま':'+'+v+'cm'}
+        </button>`).join('')}
+    </div>
+  </div>`;
 
   html += `<div class="section-title" style="margin-bottom:12px">服ブランド</div>`;
   BRANDS.clothes.forEach(b => {
+    const dryerLevel = getUserDryerLevel(b.name);
     html += `
-    <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px">
-      <div style="font-weight:700;font-size:.9rem;color:#2d3748;min-width:90px">${b.name}</div>
-      <div style="font-size:.85rem;color:#555;line-height:1.6">${b.defaultNote}</div>
+    <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:.9rem;color:#2d3748;min-width:80px;flex-shrink:0">${b.name}</div>
+        <div style="font-size:.82rem;color:#555;line-height:1.6">${b.defaultNote}</div>
+      </div>
+      <div>
+        <div style="font-size:.75rem;color:#888;margin-bottom:5px">🌀 乾燥機使用頻度（縮み対策で大きめサイズを提案）</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${DRYER_LEVELS.map((d, i) => `
+            <button onclick="setUserDryerLevel('${b.name}',${i})" style="
+              padding:5px 10px;border-radius:8px;border:1.5px solid ${i===dryerLevel?'var(--child-color)':'#ddd'};
+              background:${i===dryerLevel?'var(--child-color)':'#fff'};
+              color:${i===dryerLevel?'#fff':'#666'};
+              font-size:.75rem;cursor:pointer;font-family:inherit;font-weight:${i===dryerLevel?'600':'400'}">
+              ${d.label}${d.extra>0?' (+'+d.extra+')':''}
+            </button>`).join('')}
+        </div>
+      </div>
     </div>`;
   });
 
