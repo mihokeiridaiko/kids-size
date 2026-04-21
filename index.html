@@ -430,8 +430,6 @@ const DRYER_EXTRA = [
   [0, 1, 2],
 ];
 
-function getUserLooseCm() { return parseInt(localStorage.getItem('loose_cm') || '0'); }
-function setUserLooseCm(v) { localStorage.setItem('loose_cm', String(v)); renderBrands(); renderPredict(); }
 function getGlobalDryerLevel() { return parseInt(localStorage.getItem('global_dryer') || '0'); }
 function setGlobalDryerLevel(v) { localStorage.setItem('global_dryer', String(v)); renderBrands(); renderPredict(); }
 function getBrandDryerExtra(brand) {
@@ -691,10 +689,6 @@ function renderPredict() {
       ? `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:10px">計測間隔が短いため平均値で予測中</div>`
       : `<div style="font-size:.75rem;color:#aaa;background:#f8f8f8;padding:6px 12px;border-radius:8px;margin-bottom:10px">記録が1件のため平均値で予測中</div>`;
 
-  const looseCm = getUserLooseCm();
-  const looseNote = looseCm > 0
-    ? `<div style="font-size:.75rem;color:var(--child-color);background:#f0ebff;padding:6px 12px;border-radius:8px;margin-bottom:10px">📏 ゆったり +${looseCm}cm を反映中（ブランドタブで変更）</div>`
-    : '';
 
   // 現在サイズの最低ライン
   const currentTopsIdx    = CLOTHING_SIZES.indexOf(latest.tops_size    || latest.clothing_size || getClothingSize(latest.height_cm));
@@ -709,7 +703,7 @@ function renderPredict() {
   const cards = targets.map(t => {
     const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
     const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
-    const topsIdx     = CLOTHING_SIZES.indexOf(getClothingSize(pH + looseCm));
+    const topsIdx     = CLOTHING_SIZES.indexOf(getClothingSize(pH));
     const topsSize    = clampClothing(topsIdx);
     const bottomsSize = clampBottoms(topsIdx);
     const shoeSize    = (Math.round(clampShoe(parseFloat(getShoeSize(pH))) * 2) / 2).toFixed(1);
@@ -754,7 +748,6 @@ function renderPredict() {
 
   el.innerHTML = `
     ${rateNote}
-    ${looseNote}
     <div class="predict-grid">${cards}</div>
     <details open style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-top:4px">
       <summary style="font-size:.88rem;font-weight:700;color:#555;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
@@ -947,24 +940,9 @@ async function savePeriodMemo(period, memo) {
 // ─── ブランドタブ ─────────────────────────────
 function renderBrands() {
   const el = document.getElementById('tab-brands');
-  const looseCm = getUserLooseCm();
   const dryerLevel = getGlobalDryerLevel();
 
-  let html = `
-  <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.07)">
-    <div style="font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:8px">📏 ゆったり余裕設定</div>
-    <div style="font-size:.76rem;color:#888;margin-bottom:10px;line-height:1.6">大きめで着せたい・買い置き用など。予測サイズ全体に反映されます。</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${[[0,'そのまま'],[5,'少し大きめ (+5cm)'],[10,'大きめ (+10cm)']].map(([v,label]) => `
-        <button onclick="setUserLooseCm(${v})" style="
-          padding:7px 14px;border-radius:10px;border:2px solid ${v===looseCm?'var(--child-color)':'#e0e0e0'};
-          background:${v===looseCm?'var(--child-color)':'#fff'};
-          color:${v===looseCm?'#fff':'#555'};
-          font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">
-          ${label}
-        </button>`).join('')}
-    </div>
-  </div>
+  let html = ``;
 
   <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,.07)">
     <div style="font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:8px">🌀 乾燥機設定</div>
