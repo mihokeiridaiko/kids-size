@@ -737,17 +737,17 @@ function renderPredict() {
   const topsStartIdx    = CLOTHING_SIZES.indexOf(activeTopsLabel);
   const bottomsStartIdx = CLOTHING_SIZES.indexOf(activeBottomsLabel);
   const sizeTableRows = SIZE_TABLE.filter(s => CLOTHING_SIZES.indexOf(s.size) >= topsStartIdx).map(s =>
-    `<tr${s.size === activeTopsLabel ? ' style="box-shadow:inset 0 0 0 2px var(--child-color);font-weight:700"' : ''}>
-      <td class="td-size">${s.size}</td>
-      <td>${s.tate}</td>
-      <td>${s.haba}</td>
+    `<tr>
+      <td class="td-size" style="${s.size === activeTopsLabel ? 'border-top:2px solid var(--child-color);border-bottom:2px solid var(--child-color);border-left:2px solid var(--child-color);font-weight:700' : ''}">${s.size}</td>
+      <td style="${s.size === activeTopsLabel ? 'border-top:2px solid var(--child-color);border-bottom:2px solid var(--child-color);font-weight:700' : ''}">${s.tate}</td>
+      <td style="${s.size === activeTopsLabel ? 'border-top:2px solid var(--child-color);border-bottom:2px solid var(--child-color);border-right:2px solid var(--child-color);font-weight:700' : ''}">${s.haba}</td>
     </tr>`
   ).join('');
   const sizeTableBottomsRows = SIZE_TABLE_BOTTOMS.filter(s => CLOTHING_SIZES.indexOf(s.size) >= bottomsStartIdx).map(s =>
-    `<tr${s.size === activeBottomsLabel ? ' style="box-shadow:inset 0 0 0 2px var(--child-color);font-weight:700"' : ''}>
-      <td class="td-size">${s.size}</td>
-      <td>${s.waist}</td>
-      <td>${s.inseam}</td>
+    `<tr>
+      <td class="td-size" style="${s.size === activeBottomsLabel ? 'border-top:2px solid var(--child-color);border-bottom:2px solid var(--child-color);border-left:2px solid var(--child-color);font-weight:700' : ''}">${s.size}</td>
+      <td style="${s.size === activeBottomsLabel ? 'border-top:2px solid var(--child-color);border-bottom:2px solid var(--child-color);font-weight:700' : ''}">${s.waist}</td>
+      <td style="${s.size === activeBottomsLabel ? 'border-top:2px solid var(--child-color);border-bottom:2px solid var(--child-color);border-right:2px solid var(--child-color);font-weight:700' : ''}">${s.inseam}</td>
     </tr>`
   ).join('');
 
