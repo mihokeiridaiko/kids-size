@@ -717,16 +717,17 @@ function renderPredict() {
     const ageY = Math.floor(futAgeM / 12);
     const ageM = futAgeM % 12;
     const ageStr = ageY > 0 ? `${ageY}歳${ageM > 0 ? ageM + 'か月' : ''}` : `${ageM}か月`;
+    const isYear2 = t.cls === 'year2';
     return `
     <div class="predict-card ${t.cls}">
       <div class="predict-label">${t.icon ? t.icon + ' ' : ''}${t.label}</div>
       <div class="predict-date">${t.dateStr}頃・${ageStr}</div>
       <div class="predict-height">身長 約${pH}cm</div>
-      <div class="predict-size">
+      ${isYear2 ? '' : `<div class="predict-size">
         <span>上 ${topsSize}</span>
         <span>下 ${bottomsSize}</span>
         <span>👟 ${shoeSize}</span>
-      </div>
+      </div>`}
     </div>`;
   }).join('');
 
