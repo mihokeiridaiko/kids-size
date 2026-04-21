@@ -734,14 +734,16 @@ function renderPredict() {
   // SIZE_TABLE 参考（現在着てるサイズをハイライト）
   const activeTopsLabel    = latest.tops_size    || latest.clothing_size || getClothingSize(latest.height_cm);
   const activeBottomsLabel = latest.bottoms_size || latest.clothing_size || getClothingSize(latest.height_cm);
-  const sizeTableRows = SIZE_TABLE.map(s =>
+  const topsStartIdx    = CLOTHING_SIZES.indexOf(activeTopsLabel);
+  const bottomsStartIdx = CLOTHING_SIZES.indexOf(activeBottomsLabel);
+  const sizeTableRows = SIZE_TABLE.filter(s => CLOTHING_SIZES.indexOf(s.size) >= topsStartIdx).map(s =>
     `<tr${s.size === activeTopsLabel ? ' style="background:#f0ebff;font-weight:700"' : ''}>
       <td class="td-size">${s.size}${s.size === activeTopsLabel ? ' 👈 今' : ''}</td>
       <td>${s.tate}</td>
       <td>${s.haba}</td>
     </tr>`
   ).join('');
-  const sizeTableBottomsRows = SIZE_TABLE_BOTTOMS.map(s =>
+  const sizeTableBottomsRows = SIZE_TABLE_BOTTOMS.filter(s => CLOTHING_SIZES.indexOf(s.size) >= bottomsStartIdx).map(s =>
     `<tr${s.size === activeBottomsLabel ? ' style="background:#f0ebff;font-weight:700"' : ''}>
       <td class="td-size">${s.size}${s.size === activeBottomsLabel ? ' 👈 今' : ''}</td>
       <td>${s.waist}</td>
