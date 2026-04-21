@@ -718,55 +718,6 @@ function renderPredict() {
     </div>`;
   }).join('');
 
-  // ブランドグループ計算（服）- グローバル乾燥機設定×ブランド縮みやすさ でグループ化
-  const clothesGroups = {};
-  BRANDS.clothes.forEach(brand => {
-    if (!getBrandVisible(brand.name)) return;
-    const note = brandNotes.find(n => n.brand_name === brand.name && n.category === '服');
-    const baseOffset = note ? note.size_offset : brand.defaultOffset;
-    const dryerExtra = getBrandDryerExtra(brand);
-    const totalOff = baseOffset + dryerExtra;
-    if (!clothesGroups[totalOff]) clothesGroups[totalOff] = [];
-    clothesGroups[totalOff].push(brand.name);
-  });
-
-  const clothesCards = Object.entries(clothesGroups)
-    .sort(([a],[b]) => Number(b) - Number(a))
-    .map(([offset, names]) => {
-      const off = parseInt(offset);
-      const rows = targets.map(t => {
-        const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
-        const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
-        const tops    = clampClothing(CLOTHING_SIZES.indexOf(getClothingSize(pH + looseCm)) + off);
-        const bottoms = clampBottoms(CLOTHING_SIZES.indexOf(getClothingSize(pH + looseCm)) + off);
-        return `<div class="bpc-row"><span class="bpc-period">${t.label}</span><span class="bpc-sizes">上 <b>${tops}</b>　下 <b>${bottoms}</b></span></div>`;
-      }).join('');
-      return `<div class="bpc-card"><div class="bpc-name">${names.join('・')}</div>${rows}</div>`;
-    }).join('');
-
-  // ブランドグループ計算（靴）
-  const shoeGroups = {};
-  BRANDS.shoes.forEach(brand => {
-    if (!getBrandVisible(brand.name)) return;
-    const note = brandNotes.find(n => n.brand_name === brand.name && n.category === '靴');
-    const offsetCm = note ? parseFloat(note.shoe_offset_cm || 0) : brand.defaultOffsetCm;
-    const key = offsetCm.toFixed(1);
-    if (!shoeGroups[key]) shoeGroups[key] = [];
-    shoeGroups[key].push(brand.name);
-  });
-
-  const shoeCards = Object.entries(shoeGroups)
-    .sort(([a],[b]) => Number(a) - Number(b))
-    .map(([offsetKey, names]) => {
-      const offsetCm = parseFloat(offsetKey);
-      const rows = targets.map(t => {
-        const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
-        const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
-        const adj = (Math.round(clampShoe(parseFloat(getShoeSize(pH)) + offsetCm) * 2) / 2).toFixed(1);
-        return `<div class="bpc-row"><span class="bpc-period">${t.label}</span><span class="bpc-sizes"><b>${adj}cm</b></span></div>`;
-      }).join('');
-      return `<div class="bpc-card"><div class="bpc-name">${names.join('・')}</div>${rows}</div>`;
-    }).join('');
 
   // SIZE_TABLE 参考（現在の有効サイズをハイライト）
   const activeSizeLabel = getClothingSize(latest.height_cm + looseCm);
@@ -782,14 +733,6 @@ function renderPredict() {
     ${rateNote}
     ${looseNote}
     <div class="predict-grid">${cards}</div>
-    <div class="brand-section">
-      <div class="section-title">服ブランド別サイズ</div>
-      ${clothesCards || '<div class="no-data" style="padding:20px">ブランドタブでONにしてください</div>'}
-    </div>
-    <div class="brand-section">
-      <div class="section-title">靴ブランド別サイズ</div>
-      ${shoeCards || '<div class="no-data" style="padding:20px">ブランドタブでONにしてください</div>'}
-    </div>
     <details style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-top:4px">
       <summary style="font-size:.88rem;font-weight:700;color:#555;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
         📐 子供服 標準サイズ目安表 <span style="color:#bbb;font-weight:400;font-size:.78rem">▾</span>
