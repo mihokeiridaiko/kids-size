@@ -719,11 +719,11 @@ function renderPredict() {
   }).join('');
 
 
-  // SIZE_TABLE 参考（現在の有効サイズをハイライト）
-  const activeSizeLabel = getClothingSize(latest.height_cm + looseCm);
+  // SIZE_TABLE 参考（現在着てるサイズをハイライト）
+  const activeSizeLabel = latest.tops_size || latest.clothing_size || getClothingSize(latest.height_cm);
   const sizeTableRows = SIZE_TABLE.map(s =>
     `<tr${s.size === activeSizeLabel ? ' style="background:#f0ebff;font-weight:700"' : ''}>
-      <td class="td-size">${s.size}</td>
+      <td class="td-size">${s.size}${s.size === activeSizeLabel ? ' 👈 今' : ''}</td>
       <td>${s.tate}</td>
       <td>${s.haba}</td>
     </tr>`
@@ -733,7 +733,7 @@ function renderPredict() {
     ${rateNote}
     ${looseNote}
     <div class="predict-grid">${cards}</div>
-    <details style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-top:4px">
+    <details open style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-top:4px">
       <summary style="font-size:.88rem;font-weight:700;color:#555;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
         📐 子供服 標準サイズ目安表 <span style="color:#bbb;font-weight:400;font-size:.78rem">▾</span>
       </summary>
@@ -744,7 +744,7 @@ function renderPredict() {
             <tbody>${sizeTableRows}</tbody>
           </table>
         </div>
-        <p style="font-size:.72rem;color:#aaa;margin-top:8px;line-height:1.6">※メーカー・商品により異なります。参考値です。</p>
+        <p style="font-size:.72rem;color:#aaa;margin-top:8px;line-height:1.6">👈 今：直近の記録サイズ（記録タブで更新できます）<br>※着丈・身幅はメーカーにより異なります。参考値です。</p>
       </div>
     </details>`;
 }
