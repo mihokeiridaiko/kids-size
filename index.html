@@ -704,8 +704,10 @@ function renderPredict() {
     const futAgeM = getAgeMonthsAt(child.birthdate, t.date);
     const pH = predictHeight(latest.height_cm, curAgeM, futAgeM, personalRate);
     const topsIdx     = CLOTHING_SIZES.indexOf(getClothingSize(pH));
-    const topsSize    = clampClothing(topsIdx);
-    const bottomsSize = clampBottoms(topsIdx);
+    const effectiveTopsIdx    = topsIdx <= currentTopsIdx    ? currentTopsIdx + 1 : topsIdx;
+    const effectiveBottomsIdx = topsIdx <= currentBottomsIdx ? currentBottomsIdx + 1 : topsIdx;
+    const topsSize    = clampClothing(effectiveTopsIdx);
+    const bottomsSize = clampBottoms(effectiveBottomsIdx);
     const shoeSize    = (Math.round(clampShoe(parseFloat(getShoeSize(pH))) * 2) / 2).toFixed(1);
     const outerSize = clampClothing(topsIdx + 1);
     const ageY = Math.floor(futAgeM / 12);
