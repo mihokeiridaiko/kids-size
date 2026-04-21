@@ -738,14 +738,14 @@ function renderPredict() {
   const bottomsStartIdx = CLOTHING_SIZES.indexOf(activeBottomsLabel);
   const sizeTableRows = SIZE_TABLE.filter(s => CLOTHING_SIZES.indexOf(s.size) >= topsStartIdx).map(s =>
     `<tr${s.size === activeTopsLabel ? ' style="background:#f0ebff;font-weight:700"' : ''}>
-      <td class="td-size">${s.size}${s.size === activeTopsLabel ? ' 👈 今' : ''}</td>
+      <td class="td-size">${s.size}</td>
       <td>${s.tate}</td>
       <td>${s.haba}</td>
     </tr>`
   ).join('');
   const sizeTableBottomsRows = SIZE_TABLE_BOTTOMS.filter(s => CLOTHING_SIZES.indexOf(s.size) >= bottomsStartIdx).map(s =>
     `<tr${s.size === activeBottomsLabel ? ' style="background:#f0ebff;font-weight:700"' : ''}>
-      <td class="td-size">${s.size}${s.size === activeBottomsLabel ? ' 👈 今' : ''}</td>
+      <td class="td-size">${s.size}</td>
       <td>${s.waist}</td>
       <td>${s.inseam}</td>
     </tr>`
